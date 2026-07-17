@@ -1,6 +1,6 @@
-#Branch IF 3.8
 
 from _bootstrap import CORE_SRC  # noqa: F401
+#Branch IF 3.8
 
 from m5gp import m5gpRegressor as m5gp
 from m5gp import m5gpGlobals as gpG
