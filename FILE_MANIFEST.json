@@ -1,0 +1,665 @@
+{
+  "repository": "armandocardenasf/GenLab-m5gp",
+  "files": [
+    {
+      "path": ".dockerignore",
+      "size": 178,
+      "sha256": "37b84367532e5ecd256f73a9055521233dacee1797038f561d3ab9d23ff47e66"
+    },
+    {
+      "path": ".env.example",
+      "size": 347,
+      "sha256": "eae6f4ad2ed120863f38b2749d74a4beacc277c581d9e4d2499a152108b4e134"
+    },
+    {
+      "path": ".gitattributes",
+      "size": 240,
+      "sha256": "871af64f1295e1df736f798e303f1666fdfcc275cd5024b70de9a028446f7493"
+    },
+    {
+      "path": ".github/workflows/quality.yml",
+      "size": 820,
+      "sha256": "4e89bab85a7f7df150dff222ef1055aa22921c3bb7b0deee61fa5516dc4e06e3"
+    },
+    {
+      "path": ".gitignore",
+      "size": 1291,
+      "sha256": "9d8526b4d73303a61c7b43ff940ba0db9909d77f91dca673b1dbbac42effa39b"
+    },
+    {
+      "path": ".vscode/extensions.json",
+      "size": 204,
+      "sha256": "f9fa0b4d42780ba3400523630ab098cc06dabd0a33180953e70c8e67fcfb60a9"
+    },
+    {
+      "path": ".vscode/settings.json",
+      "size": 610,
+      "sha256": "29c482650af928cc86a1adbf788a025b6f2abb38331e2cfd5c3317f8e7d0d74c"
+    },
+    {
+      "path": "GenLab-m5gp.code-workspace",
+      "size": 368,
+      "sha256": "fb6fe315c527d9d78613590c2947dc7eac204f882866fc59d33e1cf6eb57cb32"
+    },
+    {
+      "path": "Makefile",
+      "size": 620,
+      "sha256": "bce68a7d231448442a09f6cd4592546fcc359121bb802de7e195bb9ed8284ba2"
+    },
+    {
+      "path": "README.md",
+      "size": 39393,
+      "sha256": "c16015d5b482c0d18522820e4d69237ecef0daafad081c3d512b2e15fd2a9345"
+    },
+    {
+      "path": "VALIDATION.md",
+      "size": 630,
+      "sha256": "18bd87391f8b48b31f8ec12673490080bff62349af0063cf25ed240d884a8b1a"
+    },
+    {
+      "path": "VALIDATION_ABOUT.md",
+      "size": 619,
+      "sha256": "740443abb78086356ada52e5ec295e97d5ceb675e1dab8be09ca309218703684"
+    },
+    {
+      "path": "VALIDATION_I18N.md",
+      "size": 549,
+      "sha256": "499d63b2bffec4d6c0b0e95dfb93d3fffa8879a7debc72a003552e97e675ccf8"
+    },
+    {
+      "path": "backend/Dockerfile",
+      "size": 403,
+      "sha256": "6ee3ae20b6014b4c1f587f86ad4d439edbf77f6f539417fbe9b7c91d8a132163"
+    },
+    {
+      "path": "backend/README.md",
+      "size": 2511,
+      "sha256": "acb949839cfbf3bb905784d3f80cc55c43cc1705e05ae892a115c624b7dc1d82"
+    },
+    {
+      "path": "backend/pyproject.toml",
+      "size": 613,
+      "sha256": "08dffa0cb6e3650c81dc996f5b7ac925ee4ac5f60eda340b4688dd5eb6289cf1"
+    },
+    {
+      "path": "backend/src/genlab_api/README.md",
+      "size": 239,
+      "sha256": "c2531e4babac64cc02e4107b779b0b4d5e47f82b1481f7e2f2e332d3e19919f2"
+    },
+    {
+      "path": "backend/src/genlab_api/__init__.py",
+      "size": 20,
+      "sha256": "c596b014587cd2e8fb30730925758572ece45f6f5f5641ee4b9353e5d24c09ff"
+    },
+    {
+      "path": "backend/src/genlab_api/__pycache__/__init__.cpython-313.pyc",
+      "size": 192,
+      "sha256": "f0d3c5fca89b7732a54f2427c769772c598d6cdea0cbcd879c5248774eb26591"
+    },
+    {
+      "path": "backend/src/genlab_api/__pycache__/config.cpython-313.pyc",
+      "size": 2977,
+      "sha256": "acca1b0b39dda8d650306fe0cd662ecf99702f994be4364aed8b832d947fe7dd"
+    },
+    {
+      "path": "backend/src/genlab_api/__pycache__/db.cpython-313.pyc",
+      "size": 1221,
+      "sha256": "c3fe93ff1795d73597ac25678087de85a91953363cc15f408e7f0d5cb68f5ca9"
+    },
+    {
+      "path": "backend/src/genlab_api/__pycache__/deps.cpython-313.pyc",
+      "size": 1389,
+      "sha256": "77fe5d0a08f972d276cded4f4fecc925446ff32285d9e5eb37cefb4546911aaa"
+    },
+    {
+      "path": "backend/src/genlab_api/__pycache__/main.cpython-313.pyc",
+      "size": 2376,
+      "sha256": "6f66633fbac1f28f860c309207702ad792ab24721baec5253772eea094d9e2ed"
+    },
+    {
+      "path": "backend/src/genlab_api/__pycache__/models.cpython-313.pyc",
+      "size": 8361,
+      "sha256": "c5ec475bd8fc52274cb7bc232a39fc60fd7cdeee29e93ad71f44c22ba1affddb"
+    },
+    {
+      "path": "backend/src/genlab_api/__pycache__/schemas.cpython-313.pyc",
+      "size": 9334,
+      "sha256": "b7d943554599804abfb087fae2834927dac38805f3fd5e66a824416f87c2fd69"
+    },
+    {
+      "path": "backend/src/genlab_api/__pycache__/security.cpython-313.pyc",
+      "size": 4202,
+      "sha256": "be7e4ae8111ad9ba9d6ce196d739ff1e330712ec8eeacaee9b546f2f58282bda"
+    },
+    {
+      "path": "backend/src/genlab_api/__pycache__/worker.cpython-313.pyc",
+      "size": 26192,
+      "sha256": "3357a67189d53b297db6340c40eb2cca15df9a8ba1c9df9ae6f193c77ca34a3f"
+    },
+    {
+      "path": "backend/src/genlab_api/config.py",
+      "size": 1654,
+      "sha256": "117a9a9b1af8b22d53c730b2eb2255ecd82b8ede0cd5a86371fa059eac54f99e"
+    },
+    {
+      "path": "backend/src/genlab_api/db.py",
+      "size": 517,
+      "sha256": "5368047f3ab7202679000af650cd6e0493ac223cdfdcebe235954ed295da700c"
+    },
+    {
+      "path": "backend/src/genlab_api/deps.py",
+      "size": 664,
+      "sha256": "2c92ba35e54e6305771f9a46b0709d8424906060cbc4a05d7e5dfbc8debc8426"
+    },
+    {
+      "path": "backend/src/genlab_api/main.py",
+      "size": 964,
+      "sha256": "65c37ea925a681814728fb67a5abba33949c1ffa9bf05a188dbdc3575d7677e2"
+    },
+    {
+      "path": "backend/src/genlab_api/models.py",
+      "size": 4130,
+      "sha256": "9d815f567e172ce60f7c3cd7d72c550d8c21a3b9c25322c21e5497aac8fcb758"
+    },
+    {
+      "path": "backend/src/genlab_api/routers/README.md",
+      "size": 104,
+      "sha256": "8a4990c1a6ae902618812de6d4f0bf828a979e4408bd96e74b397b65b3ad1572"
+    },
+    {
+      "path": "backend/src/genlab_api/routers/__init__.py",
+      "size": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "backend/src/genlab_api/routers/__pycache__/__init__.cpython-313.pyc",
+      "size": 174,
+      "sha256": "31041949e817549d9a2bab10259e841be398e90481a3fc22b5d61af7f2f3493c"
+    },
+    {
+      "path": "backend/src/genlab_api/routers/__pycache__/about.cpython-313.pyc",
+      "size": 4990,
+      "sha256": "e4bc302a482f36d1295af24dd9a8b650f8a171017e5d74c4ed35a73acfd847cc"
+    },
+    {
+      "path": "backend/src/genlab_api/routers/__pycache__/auth.cpython-313.pyc",
+      "size": 5278,
+      "sha256": "c8aa3af889be58729428a3146566749a0fd1c3e6842e1b64749c321b7a9e9217"
+    },
+    {
+      "path": "backend/src/genlab_api/routers/__pycache__/datasets.cpython-313.pyc",
+      "size": 5395,
+      "sha256": "050d83a63951646d5321f752a010bfd4b02bc9ac3d028ea1351171a756ee5470"
+    },
+    {
+      "path": "backend/src/genlab_api/routers/__pycache__/experiments.cpython-313.pyc",
+      "size": 18044,
+      "sha256": "46edc2c9a731f58eab676639bafbb138283a47ae88d87b72f0082d873745ae58"
+    },
+    {
+      "path": "backend/src/genlab_api/routers/__pycache__/gpus.cpython-313.pyc",
+      "size": 872,
+      "sha256": "2d717bf96453c70cc4741297fb4f393f96b29c50ad593586f53584b5dfa50867"
+    },
+    {
+      "path": "backend/src/genlab_api/routers/about.py",
+      "size": 6279,
+      "sha256": "158c83071c8a6162962c11e758d2f27336b8edc611c5d3684e8164ae6635bc09"
+    },
+    {
+      "path": "backend/src/genlab_api/routers/auth.py",
+      "size": 2432,
+      "sha256": "607004ad8d3938b097cd90ec2e58953a58c1602acd05ce44100ac3f8b6776359"
+    },
+    {
+      "path": "backend/src/genlab_api/routers/datasets.py",
+      "size": 2125,
+      "sha256": "8a553c7760ddf3c887c3e47c30097bee749928ba69e1dbc526821af9a5e00bad"
+    },
+    {
+      "path": "backend/src/genlab_api/routers/experiments.py",
+      "size": 13205,
+      "sha256": "078c3fa3f2d8498c74f15701cfba60325668d65775da3365712c3f4da0f7a393"
+    },
+    {
+      "path": "backend/src/genlab_api/routers/gpus.py",
+      "size": 406,
+      "sha256": "91f7370cf018bdf7ccc79065c13b132d11f12975c9bdc224dc6f548d814670b9"
+    },
+    {
+      "path": "backend/src/genlab_api/schemas.py",
+      "size": 4900,
+      "sha256": "19f67f7259713651adf446368a84876bf82f6dcfaa670a641988ddbeb7b590b1"
+    },
+    {
+      "path": "backend/src/genlab_api/security.py",
+      "size": 2116,
+      "sha256": "1c7453be90eb28f20df4ed9c12ca0f353e2bcc52ed835f91406f8c94d578d893"
+    },
+    {
+      "path": "backend/src/genlab_api/services/README.md",
+      "size": 202,
+      "sha256": "9d8dba8885aa429f48b33bd08bc117e22f6f03419fe7bbd83c17c3950a928da4"
+    },
+    {
+      "path": "backend/src/genlab_api/services/__init__.py",
+      "size": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "backend/src/genlab_api/services/__pycache__/__init__.cpython-313.pyc",
+      "size": 175,
+      "sha256": "22742057643361e7b988e31c304d7f55f1e0cf323613c48d05be9ab3c7ddd1f7"
+    },
+    {
+      "path": "backend/src/genlab_api/services/__pycache__/experiments.cpython-313.pyc",
+      "size": 4717,
+      "sha256": "b56d79990ef0b1673e43ee44fbe16cc83e7f303e0a0c9027d4ee262747b204ec"
+    },
+    {
+      "path": "backend/src/genlab_api/services/__pycache__/files.cpython-313.pyc",
+      "size": 6080,
+      "sha256": "3bb347f6f1fc40e074dda774430d722ac3357a35e2be0b8f2d0bb6057b0e6ca2"
+    },
+    {
+      "path": "backend/src/genlab_api/services/__pycache__/gpu.cpython-313.pyc",
+      "size": 4946,
+      "sha256": "2cb12d87b427f09c660f11701b206ca005f75961d94bb33de1b26729682bd91d"
+    },
+    {
+      "path": "backend/src/genlab_api/services/experiments.py",
+      "size": 3016,
+      "sha256": "950dbf9549f73016abc2f8555609ef55433caea2ef9269ac376a52bf16adbe3d"
+    },
+    {
+      "path": "backend/src/genlab_api/services/files.py",
+      "size": 4249,
+      "sha256": "d4b2b37523bd3e54ecdd55dc84e96a041d42ec65788e9649aa1f30f87fd86c81"
+    },
+    {
+      "path": "backend/src/genlab_api/services/gpu.py",
+      "size": 3306,
+      "sha256": "3b7488078ddb43600d4b6e5ad98090a445ce9d1ad402970417ed36143cec0eb8"
+    },
+    {
+      "path": "backend/src/genlab_api/worker.py",
+      "size": 25648,
+      "sha256": "799f696595e4318df5cc611fe0a8ba6995dde3b17ff30f16c220703569dab4c6"
+    },
+    {
+      "path": "backend/tests/README.md",
+      "size": 66,
+      "sha256": "d0446bc607550b0c7ce1b69eb6e4f1a80a23d90ccf25795c3b6aac43e6e24bc9"
+    },
+    {
+      "path": "backend/tests/test_about.py",
+      "size": 1062,
+      "sha256": "fc946a539f53913211504ba7005e1c1219883e5bf0d2c9da556958c84432a408"
+    },
+    {
+      "path": "backend/tests/test_classification_and_visualization.py",
+      "size": 7920,
+      "sha256": "aae78171b43897e2ff8c890487b1101309613c3b2907e37396d7f7586ab94051"
+    },
+    {
+      "path": "backend/tests/test_dataset_files.py",
+      "size": 2608,
+      "sha256": "9e63ae26d0b4210a71c4131395a589c36c4e430f821c4cf843741e8c1ded556c"
+    },
+    {
+      "path": "backend/tests/test_derived_artifact_downloads.py",
+      "size": 6437,
+      "sha256": "d57dd5181e1968982d63e4d13a2ea639de7f8fa67c78694380b13f8e35a238c0"
+    },
+    {
+      "path": "backend/tests/test_experiment_json_artifact.py",
+      "size": 3889,
+      "sha256": "74c3d912b2feef2bf0a2e628b3cac72513702aa1328ff54cba2ae9ddd2deb528"
+    },
+    {
+      "path": "backend/tests/test_experiment_management.py",
+      "size": 4767,
+      "sha256": "4ddfd1f3bbdda222a232958a98a11c2aa8e4bb3bc70f700f420c587717802479"
+    },
+    {
+      "path": "backend/tests/test_health.py",
+      "size": 148,
+      "sha256": "5d6f4e5ca1723f95d66cd0272ef936248a83827674b6d033fff25b88692c5487"
+    },
+    {
+      "path": "backend/tests/test_regression_methods.py",
+      "size": 1398,
+      "sha256": "10c16a1aa701ffbd839cd4dd155b30ec037e6d213bbcb5461baf0c621ddf41f1"
+    },
+    {
+      "path": "core/README.md",
+      "size": 562,
+      "sha256": "145a6b9cf4dd1882aa4dfa23727a9e212f5e61d15f4d78c56b7467aa25a0a2b3"
+    },
+    {
+      "path": "core/pyproject.toml",
+      "size": 535,
+      "sha256": "6d175ddd62f10a7624e63f510aff6636be206b841cd753a90b3830bda3f2df38"
+    },
+    {
+      "path": "core/src/m5gp/README.md",
+      "size": 796,
+      "sha256": "f34909d73ad2dc6027df8159628a992cf51475eaebde3f40f589b276b6200465"
+    },
+    {
+      "path": "core/src/m5gp/__init__.py",
+      "size": 1569,
+      "sha256": "f8f265bbccb47d379977b2b3ce5983bff2f32c5bb40d7d97feb70d66e644bfce"
+    },
+    {
+      "path": "core/src/m5gp/__pycache__/__init__.cpython-313.pyc",
+      "size": 1894,
+      "sha256": "f21b5bef5e8b2097590c5f803b9783bc2ee9e6f7a68dd1dc20d03a1520ab6582"
+    },
+    {
+      "path": "core/src/m5gp/__pycache__/runtime.cpython-313.pyc",
+      "size": 3355,
+      "sha256": "d655541d308e9282f851cbf265adf95c2e6315e4b7d358481dcf43affb67dc8b"
+    },
+    {
+      "path": "core/src/m5gp/runtime.py",
+      "size": 1967,
+      "sha256": "f91001ed013da5ec14c55cfc32eea6fdd3cc8012a0e093a89f1f9caf22c42470"
+    },
+    {
+      "path": "core/tests/README.md",
+      "size": 677,
+      "sha256": "d1151675af815089eef4053bda3aeb4fdcee8e1f9050c13ae6c6f3d8a1064c3c"
+    },
+    {
+      "path": "core/tests/_bootstrap.py",
+      "size": 241,
+      "sha256": "b4dd263811e210de018a271ed6ba4987ea82008797fffe4c1f5966879741498d"
+    },
+    {
+      "path": "core/tests/clasificacion_diabetes.py",
+      "size": 431,
+      "sha256": "e644a2e7f73bcd3d42cfbbef87673c81eecbbb611cf29c9cf82ea88f16aa8df3"
+    },
+    {
+      "path": "core/tests/m5gp_Digen.py",
+      "size": 431,
+      "sha256": "e644a2e7f73bcd3d42cfbbef87673c81eecbbb611cf29c9cf82ea88f16aa8df3"
+    },
+    {
+      "path": "core/tests/m5gp_Test.py",
+      "size": 7536,
+      "sha256": "9e4a80eb455bcf1fb8a4ae98a03a107edac1cfae189ba927b7a970db1afc2d86"
+    },
+    {
+      "path": "core/tests/m5gp_Test2.py",
+      "size": 431,
+      "sha256": "e644a2e7f73bcd3d42cfbbef87673c81eecbbb611cf29c9cf82ea88f16aa8df3"
+    },
+    {
+      "path": "core/tests/m5gp_Test_Classifier.py",
+      "size": 431,
+      "sha256": "e644a2e7f73bcd3d42cfbbef87673c81eecbbb611cf29c9cf82ea88f16aa8df3"
+    },
+    {
+      "path": "core/tests/test_imports.py",
+      "size": 557,
+      "sha256": "6fd495c765e9ad33dd2abf38f2133c50183407a5aa159f425862d49df528990d"
+    },
+    {
+      "path": "core/tests/test_layout.py",
+      "size": 382,
+      "sha256": "689558a0c002913345465fcf3466e6e101b60b67e175131226190f7fe00e788b"
+    },
+    {
+      "path": "data/README.md",
+      "size": 86,
+      "sha256": "237077ae05b43ce8c20e0505f3b05a77343708c824d48c42bb7d45c57619befb"
+    },
+    {
+      "path": "data/artifacts/.gitkeep",
+      "size": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "data/logs/.gitkeep",
+      "size": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "data/uploads/.gitkeep",
+      "size": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "docker-compose.yml",
+      "size": 870,
+      "sha256": "e7174cc4bd3c720b0fe2ab1a870d3dccfe0fb25257fc90e1cc58f8701d405922"
+    },
+    {
+      "path": "docs/ARCHITECTURE.md",
+      "size": 1171,
+      "sha256": "cb13d8d38e4abf8e867f2ee7550a041da14f12e6f9aaecd0969a74b2dabfcace"
+    },
+    {
+      "path": "docs/GITHUB_PUBLISHING.md",
+      "size": 2908,
+      "sha256": "49ba90ad58e7e6fcdc1baf54c3289a266788245ed51ce7c92a56f179d973648a"
+    },
+    {
+      "path": "docs/LEGAL_NOTICE.md",
+      "size": 655,
+      "sha256": "e5532cc9d9235723799ae0888a75f86f4fa36d97f73c143bedb68ca42addcf6c"
+    },
+    {
+      "path": "docs/README.md",
+      "size": 46,
+      "sha256": "9b19fe988c2f0e6b2d6f3ce083592d891d66f5f279c529f04a945da86e456c6c"
+    },
+    {
+      "path": "environment-gpu.yml",
+      "size": 281,
+      "sha256": "e70aa2dea856477273f9e3a5f67e4924f61e742e168ef246e452ff18413e4202"
+    },
+    {
+      "path": "frontend/.npmrc",
+      "size": 155,
+      "sha256": "e1ba8c9116d4fb0b4f365b907146b560fd6855c1bb1a304f9f4e6b75993a7f4b"
+    },
+    {
+      "path": "frontend/Dockerfile",
+      "size": 188,
+      "sha256": "952a1d8769f04427c3481ee736db0c45801b9787f649913934f2673f553c1375"
+    },
+    {
+      "path": "frontend/README.md",
+      "size": 3774,
+      "sha256": "05883adead1a443d25d788ac33f5d132f6c6009f5e683c9cb3030df4c961bfeb"
+    },
+    {
+      "path": "frontend/index.html",
+      "size": 255,
+      "sha256": "7e420ab3159fc1befab87ea718404a6ddca6fff37f7fddb24183cafbe32df7b6"
+    },
+    {
+      "path": "frontend/package-lock.json",
+      "size": 43921,
+      "sha256": "76fe7b9397f595e4fc7e67235e52de94aa446132415f087c5a15e329f1d02959"
+    },
+    {
+      "path": "frontend/package.json",
+      "size": 514,
+      "sha256": "cc7a255490c4b4795cd986c6ef027a44cad7b2850e41cb0dd6c1eafdb95d61db"
+    },
+    {
+      "path": "frontend/src/README.md",
+      "size": 176,
+      "sha256": "8f7da60bd374904b07309d165b5b6b0101525d41029ed281b4f58cd9b7ea5f68"
+    },
+    {
+      "path": "frontend/src/api.ts",
+      "size": 4967,
+      "sha256": "1767b9e8d4f8992afba0a302d9b223c8697a5e368ab52bf68e7da8906a0241bc"
+    },
+    {
+      "path": "frontend/src/auth.tsx",
+      "size": 1330,
+      "sha256": "a32e440e8e547752442e7551f05b7f4c0800c956c182f3f8042c72994e680540"
+    },
+    {
+      "path": "frontend/src/charts.tsx",
+      "size": 4808,
+      "sha256": "8e4ff551f3172adb390da9ef194c44efe759ab7c66df13135956642f68c7b026"
+    },
+    {
+      "path": "frontend/src/components.tsx",
+      "size": 1759,
+      "sha256": "872658eb1495758fa3a2a981344ab8d95a75450cf1734bb505bc3504f68c089e"
+    },
+    {
+      "path": "frontend/src/i18n.tsx",
+      "size": 29666,
+      "sha256": "07fe6f9086ee1073278598229a93e42e217d09cd05391f6b7de68ce902aa5c04"
+    },
+    {
+      "path": "frontend/src/main.tsx",
+      "size": 2815,
+      "sha256": "38ca4a3f93e01ecf89d085dca41dbc67d304a9fadde40543dd4ea1da021d7fc6"
+    },
+    {
+      "path": "frontend/src/pages.tsx",
+      "size": 43047,
+      "sha256": "5fd88fce1cd46b53208492ca4ff06e590ba197389dd9e2725e36304af80a501f"
+    },
+    {
+      "path": "frontend/src/styles.css",
+      "size": 11331,
+      "sha256": "f9399c64cfbf4b29d968dcd5152b6f913c4f7ac44d4b8c5605ca83d4500f8d87"
+    },
+    {
+      "path": "frontend/src/types.ts",
+      "size": 2070,
+      "sha256": "af1930a7f0f580a0b1bcea67a66fc6224d0e2832afc258084db59f8f4be0bc31"
+    },
+    {
+      "path": "frontend/src/vite-env.d.ts",
+      "size": 62,
+      "sha256": "78e91e6407bfc80e012efa2602f3ee2a17cd571170a206d7c5656858c2e9ab25"
+    },
+    {
+      "path": "frontend/tsconfig.json",
+      "size": 419,
+      "sha256": "47a023d5d49bd82152be15615b8b3534a9407b4a95a885ecc61d22e1ee82a748"
+    },
+    {
+      "path": "frontend/verify_i18n.py",
+      "size": 1345,
+      "sha256": "5b4961af6f2433676396e5ef204591a121b2cc7bf41e7e4cea2fd344696ec1bd"
+    },
+    {
+      "path": "frontend/vite.config.ts",
+      "size": 145,
+      "sha256": "fbf64594177788e4cc4f9464a07990a8f6ef1aee859ac48d15067724072f8cb4"
+    },
+    {
+      "path": "infra/README.md",
+      "size": 94,
+      "sha256": "452ca40f58c7a73edb0db1add1a2e912e8334aa2f9e74755b9e9edbace6fdd9a"
+    },
+    {
+      "path": "integrations/srbench/README.md",
+      "size": 1575,
+      "sha256": "7b40a1b2c1b0d6825fcd0a583534b12c3755e65855e3e7659dd20fd013cd2914"
+    },
+    {
+      "path": "integrations/srbench/__pycache__/install_into_srbench.cpython-313.pyc",
+      "size": 5233,
+      "sha256": "c7609e08759aa7737a1eaa526def56bde3ed4b4a96a1c1f72e4f7e163046c171"
+    },
+    {
+      "path": "integrations/srbench/__pycache__/m5gpRegressor.cpython-313.pyc",
+      "size": 1846,
+      "sha256": "65d32f27ff8a803ed7e53b48aa8de50b5f4ee1fa2e5b5fb9549d69bd31cb58d2"
+    },
+    {
+      "path": "integrations/srbench/__pycache__/verify_install.cpython-313.pyc",
+      "size": 2810,
+      "sha256": "d31f3a34f5f3a731ade69900b6aa1a26dd79159f5d17731a59f2d00b14c13556"
+    },
+    {
+      "path": "integrations/srbench/environment.yml",
+      "size": 263,
+      "sha256": "634f55461b6e34caef61137f0e9491a61d519f82425e672d56eaa174223f5e0f"
+    },
+    {
+      "path": "integrations/srbench/install.sh",
+      "size": 289,
+      "sha256": "2f3923dc4c1de071c2f37f7237b9a10a298ce069e5783bf2d4a7061f9a7bb5c7"
+    },
+    {
+      "path": "integrations/srbench/install_into_srbench.py",
+      "size": 3294,
+      "sha256": "14f1b3f1708e8de626835d874344575ef21268e3b259d7daa1c50dccfec1fdc3"
+    },
+    {
+      "path": "integrations/srbench/m5gpRegressor.py",
+      "size": 2054,
+      "sha256": "09c739cdef56fd21b562976293f1b854e8b2d4505256a23c4dfa8eda64ae450a"
+    },
+    {
+      "path": "integrations/srbench/requirements.txt",
+      "size": 44,
+      "sha256": "6f10d2bb93a727e8a6fd44ab74509301e00daa0e4eca34338798396d32a33f4c"
+    },
+    {
+      "path": "integrations/srbench/verify_install.py",
+      "size": 1398,
+      "sha256": "0f4a3c5a12b03c2af979646b2190e23bb390bd4ecc79a176ec2e54c185746d44"
+    },
+    {
+      "path": "tools/README.md",
+      "size": 505,
+      "sha256": "ebe0d140dbf9cae0db38caab5cf8ce08981e84f4d419ccf53e339a18f4aaa5ce"
+    },
+    {
+      "path": "tools/__pycache__/check_github_repository.cpython-313.pyc",
+      "size": 3031,
+      "sha256": "b8dee49a12ea6d91dc07efd2e5a24580767b996dcc22c29871f67238b7463b5f"
+    },
+    {
+      "path": "tools/__pycache__/install_core_from_github.cpython-313.pyc",
+      "size": 6782,
+      "sha256": "d0931f974f86144d4a090be3864de12f081547a25dca5ccc7187bf7087a66e11"
+    },
+    {
+      "path": "tools/__pycache__/verify_structure.cpython-313.pyc",
+      "size": 3029,
+      "sha256": "0cc75e575ec579800c870375f03e3dbb721d640d712362be65b1f9ee8580432e"
+    },
+    {
+      "path": "tools/check_github_repository.py",
+      "size": 2171,
+      "sha256": "cd02205317736103ec63ac81d7f6edb86e35495b8383d7abf44441d4c60005d9"
+    },
+    {
+      "path": "tools/install_core_from_github.py",
+      "size": 4225,
+      "sha256": "7986a0cb4cff758497236719326d48f83f8dddaaf907e410ef4330995ac4b278"
+    },
+    {
+      "path": "tools/install_core_from_github.sh",
+      "size": 184,
+      "sha256": "766e3cd2087f68d0d4e527e77cecd922dbd6f4fdce378a3567896495210c4caf"
+    },
+    {
+      "path": "tools/publish_to_github.sh",
+      "size": 776,
+      "sha256": "9a2356dcbc07eb1ae31d5452a3b0d010b59720ae0b1114e061ac8a307835a5a4"
+    },
+    {
+      "path": "tools/verify_structure.py",
+      "size": 1896,
+      "sha256": "9670a71f01f826336caacc84b2402e040c5fca9e15f90d9f526d8343f8e69fd3"
+    }
+  ]
+}

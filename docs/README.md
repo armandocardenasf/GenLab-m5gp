@@ -1,0 +1,3 @@
+# Documentación
+
+Consulte `ARCHITECTURE.md`.

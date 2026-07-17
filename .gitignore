@@ -1,0 +1,70 @@
+# Python
+__pycache__/
+*.py[cod]
+*.so
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.venv/
+venv/
+env/
+
+# Local configuration and credentials
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Runtime databases, uploads, logs and generated artifacts
+*.db
+*.sqlite
+*.sqlite3
+data/*
+!data/README.md
+!data/uploads/
+!data/uploads/.gitkeep
+!data/artifacts/
+!data/artifacts/.gitkeep
+!data/logs/
+!data/logs/.gitkeep
+backend/data/
+log/
+logs/
+*.log
+
+# Frontend dependencies and builds
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+frontend/*.tsbuildinfo
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# IDE / operating system
+.DS_Store
+Thumbs.db
+.idea/
+*.swp
+*.swo
+
+# Original M5GP 2.0 sources downloaded by tools/install_core_from_github.py
+# These files are intentionally NOT part of the GenLab-m5gp repository.
+core/src/m5gp/m5gp.py
+core/src/m5gp/m5gpGlobals.py
+core/src/m5gp/m5gpCudaMethods.py
+core/src/m5gp/m5gpCumlMethods.py
+core/src/m5gp/m5gpCumlMethods2.py
+core/src/m5gp/m5gpMod1.py
+core/src/m5gp/m5gpMod2.py
+core/src/m5gp/m5gpMod3.py
+core/src/m5gp/m5gpSymBuilder.py
+core/src/m5gp/SOURCE_INFO.json
+
+# Historical tests optionally copied from the M5GP 2.0 repository.
+# GenLab keeps its own direct-execution test template in core/tests/m5gp_Test.py.
+core/tests/original/

@@ -1,0 +1,27 @@
+{
+  "python.analysis.extraPaths": [
+    "${workspaceFolder}/core/src",
+    "${workspaceFolder}/backend/src"
+  ],
+  "python.testing.pytestEnabled": true,
+  "python.testing.pytestArgs": [
+    "backend/tests",
+    "core/tests"
+  ],
+  "files.exclude": {
+    "**/__pycache__": true,
+    "**/.pytest_cache": true,
+    "frontend/node_modules": true,
+    "frontend/dist": true,
+    "data/uploads": true,
+    "data/artifacts": true,
+    "data/logs": true
+  },
+  "search.exclude": {
+    "frontend/node_modules": true,
+    "frontend/dist": true,
+    "data": true
+  },
+  "editor.formatOnSave": true,
+  "files.eol": "\n"
+}

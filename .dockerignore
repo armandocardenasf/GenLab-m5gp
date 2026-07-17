@@ -1,0 +1,16 @@
+.git
+.github
+.vscode
+.venv
+**/__pycache__
+**/*.pyc
+**/.pytest_cache
+frontend/node_modules
+frontend/dist
+data/uploads/*
+data/artifacts/*
+data/logs/*
+*.db
+*.sqlite
+*.sqlite3
+*.log

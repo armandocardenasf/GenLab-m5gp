@@ -1,0 +1,14 @@
+{
+  "folders": [
+    {"name": "GenLab M5GP", "path": "."},
+    {"name": "Backend API", "path": "backend"},
+    {"name": "Frontend Web", "path": "frontend"},
+    {"name": "Core M5GP", "path": "core"}
+  ],
+  "settings": {
+    "python.analysis.extraPaths": [
+      "${workspaceFolder:GenLab M5GP}/core/src",
+      "${workspaceFolder:GenLab M5GP}/backend/src"
+    ]
+  }
+}
