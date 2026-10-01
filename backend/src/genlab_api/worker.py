@@ -353,7 +353,7 @@ def run_experiment(experiment_id: str, physical_gpu_id: int) -> None:
                 r2_score,
                 recall_score,
             )
-            from sklearn.model_selection import train_test_split
+            from sklearn.model_selection import KFold, StratifiedKFold, train_test_split
 
             from m5gp import m5gpClassifier, m5gpRegressor
 
@@ -373,16 +373,61 @@ def run_experiment(experiment_id: str, physical_gpu_id: int) -> None:
 
             X = x_frame.to_numpy().astype(np.float32)
             y = frame[experiment.target_column].to_numpy().astype(np.float32)
+            split_config = dict(
+                (experiment.parameters or {}).get("_genlab_split") or {}
+            )
+            split_strategy = str(
+                split_config.get("strategy", "holdout")
+            ).lower()
+            split_seed = _int_or_default(
+                split_config.get("random_state"),
+                _int_or_default(
+                    (experiment.parameters or {}).get("random_state"),
+                    settings.random_state,
+                ),
+            )
             stratify = (
                 y if experiment.task_type == "classification" else None
             )
-            X_train, X_test, y_train, y_test = train_test_split(
-                X,
-                y,
-                test_size=settings.test_size,
-                random_state=settings.random_state,
-                stratify=stratify,
-            )
+            if split_strategy == "kfold":
+                folds = max(_int_or_default(split_config.get("folds"), 5), 2)
+                shuffle = bool(split_config.get("shuffle", True))
+                fold_index = _int_or_default(split_config.get("fold_index"), 0)
+                splitter = (
+                    StratifiedKFold(
+                        n_splits=folds,
+                        shuffle=shuffle,
+                        random_state=split_seed if shuffle else None,
+                    )
+                    if experiment.task_type == "classification"
+                    else KFold(
+                        n_splits=folds,
+                        shuffle=shuffle,
+                        random_state=split_seed if shuffle else None,
+                    )
+                )
+                splits = list(splitter.split(X, y if stratify is not None else None))
+                train_index, test_index = splits[fold_index % len(splits)]
+                X_train, X_test = X[train_index], X[test_index]
+                y_train, y_test = y[train_index], y[test_index]
+            else:
+                test_size = _float_or_default(
+                    split_config.get("test_size"), settings.test_size
+                )
+                train_size = split_config.get("train_size")
+                train_size = (
+                    _float_or_default(train_size)
+                    if train_size is not None
+                    else None
+                )
+                X_train, X_test, y_train, y_test = train_test_split(
+                    X,
+                    y,
+                    train_size=train_size,
+                    test_size=test_size,
+                    random_state=split_seed,
+                    stratify=stratify,
+                )
 
             experiment.progress = {
                 "stage": "preparing",
@@ -396,8 +441,10 @@ def run_experiment(experiment_id: str, physical_gpu_id: int) -> None:
                 if experiment.task_type == "regression"
                 else m5gpClassifier
             )
+            constructor_values = dict(experiment.parameters or {})
+            constructor_values.pop("_genlab_split", None)
             parameters = _constructor_parameters(
-                estimator_class, dict(experiment.parameters or {})
+                estimator_class, constructor_values
             )
             parameters.setdefault(
                 "logPath", str(artifact_dir / "log") + os.sep
@@ -588,6 +635,7 @@ def run_experiment(experiment_id: str, physical_gpu_id: int) -> None:
             (artifact_dir / "model.txt").write_text(
                 str(symbolic_model), encoding="utf-8"
             )
+            metrics["validation"] = _json_value(split_config)
             (artifact_dir / "metrics.json").write_text(
                 json.dumps(
                     _json_value(metrics),
@@ -676,6 +724,8 @@ def run_experiment(experiment_id: str, physical_gpu_id: int) -> None:
                 train_metrics=train_metrics,
                 test_metrics=test_metrics,
             )
+            result_document["validation"] = _json_value(split_config)
+            result_document["run_id"] = experiment.id
             (artifact_dir / "experiment.json").write_text(
                 json.dumps(
                     result_document,
@@ -696,7 +746,7 @@ def run_experiment(experiment_id: str, physical_gpu_id: int) -> None:
                 "generation": last_generation,
                 "total_generations": total_generations,
                 "history": generation_history,
-                "message": "Experimento finalizado correctamente",
+                "message": "Corrida finalizada correctamente",
             }
             experiment.finished_at = now()
             db.commit()
@@ -708,7 +758,7 @@ def run_experiment(experiment_id: str, physical_gpu_id: int) -> None:
             **dict(experiment.progress or {}),
             "stage": "failed",
             "percent": current_percent,
-            "message": "El experimento terminó con error",
+            "message": "La corrida terminó con error",
         }
         experiment.finished_at = now()
         db.commit()
@@ -716,5 +766,12 @@ def run_experiment(experiment_id: str, physical_gpu_id: int) -> None:
         os.chdir(previous_directory)
         try:
             release(db, experiment_id)
+            try:
+                from .services.experiments import dispatch_queued
+                dispatch_queued(db)
+            except Exception:
+                # A completed run must remain valid even if queue dispatching
+                # encounters a transient error.
+                db.rollback()
         finally:
             db.close()
