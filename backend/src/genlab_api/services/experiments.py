@@ -100,3 +100,27 @@ def cancel(db: Session, experiment: Experiment):
     }
     release(db, experiment.id)
     db.commit()
+
+
+def dispatch_queued(db: Session) -> list[str]:
+    """Start queued runs while GPUs are available.
+
+    Batch/group execution uses the existing GPU reservation mechanism.  Runs
+    that cannot start immediately remain queued and are picked up when a
+    worker releases a GPU.
+    """
+    from sqlalchemy import select
+
+    started: list[str] = []
+    queued = list(
+        db.scalars(
+            select(Experiment)
+            .where(Experiment.status == ExperimentStatus.queued.value)
+            .order_by(Experiment.created_at.asc())
+        )
+    )
+    for experiment in queued:
+        if launch(db, experiment) is None:
+            break
+        started.append(experiment.id)
+    return started
