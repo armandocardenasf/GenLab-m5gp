@@ -1,23 +1,60 @@
 # Backend GenLab M5GP
 
-API FastAPI con autenticación JWT, usuarios, datasets, experimentos, artefactos
-y control de una tarea por GPU. La carga de datasets admite archivos `CSV` separados por comas y `TSV` separados por tabuladores.
+API FastAPI con JWT, datasets, corridas, experimentos agrupados, predefinidos, lotes y control de una tarea por GPU.
 
-## Relación con el motor original
+## Terminología
 
-El backend no altera el ciclo M5GP. Cada ejecución se inicia en un proceso
-independiente y sigue este orden:
+- La entidad SQLAlchemy histórica `Experiment` y la tabla `experiments` se mantienen por compatibilidad. En la interfaz nueva representan una **corrida individual**.
+- `ExperimentGroup` es el nuevo contenedor científico **Experimento**.
+- `Batch` representa un **Lote** de experimentos.
 
-1. reservar una GPU física mediante un lease en base de datos;
-2. establecer `CUDA_VISIBLE_DEVICES`;
-3. importar el paquete `m5gp` dentro del proceso;
-4. construir el estimador con parámetros aceptados por su constructor original;
-5. ejecutar `fit()` y `predict()`;
-6. guardar métricas y artefactos;
-7. liberar el lease.
+No se renombra ni elimina la tabla existente.
 
-El worker no pasa `backend`, `device_id`, callbacks, límites internos de tiempo
-ni parámetros no definidos por el estimador original.
+## Ejecución M5GP
+
+Cada corrida conserva el flujo original:
+
+1. reserva de GPU;
+2. `CUDA_VISIBLE_DEVICES`;
+3. importación de M5GP dentro del worker;
+4. construcción del estimador;
+5. `fit()` y `predict()`;
+6. métricas Train/Test y artefactos;
+7. liberación de GPU.
+
+Para corridas agrupadas, el worker libera la GPU y solicita el despacho de la siguiente corrida `queued`.
+
+## Partición de datos
+
+GenLab soporta:
+
+- Holdout aleatorio con `train_size`, `test_size` y `random_state`;
+- K-fold (`KFold` o `StratifiedKFold`) con una corrida por fold y repetición.
+
+La configuración queda guardada en `_genlab_split`, `metrics.json` y `experiment.json`. Los valores públicos `train_size`, `test_size`, `random_state`, `validation_strategy` y `cv_folds` permanecen también en `parameters` y se enviarán automáticamente a M5GP cuando sus constructores los declaren.
+
+## Endpoints añadidos
+
+```text
+/runs
+/experiment-groups
+/parameter-presets
+/batches
+```
+
+La API histórica `/experiments` continúa operativa.
+
+## Nuevos archivos
+
+```text
+lab_models.py
+lab_schemas.py
+services/lab.py
+routers/runs.py
+routers/experiment_groups.py
+routers/presets.py
+routers/batches.py
+```
 
 ## Arranque
 
@@ -27,43 +64,3 @@ python -m pip install -e .
 uvicorn genlab_api.main:app --app-dir src --workers 1
 ```
 
-## Gestión de experimentos
-
-La API permite:
-
-- `POST /api/v1/experiments/{id}/rerun`: volver a ejecutar el mismo experimento con su configuración almacenada;
-- `DELETE /api/v1/experiments/{id}`: eliminar un experimento inactivo y sus artefactos;
-- `GET /api/v1/experiments/{id}`: consultar parámetros iniciales, estado, progreso y resultados.
-
-El progreso de entrenamiento se obtiene leyendo las líneas `Generation: n` que
-imprime el motor original. El backend no modifica el ciclo evolutivo.
-
-
-## Regresión y clasificación
-
-El campo `task_type` de cada experimento determina el estimador original que
-crea el worker:
-
-- `regression` → `m5gpRegressor`;
-- `classification` → `m5gpClassifier`.
-
-La validación de la API mantiene separados los parámetros de cada tarea. Para
-clasificación, `evaluationMethod` acepta 0–3 y se admiten `scorer`, `crossVal`,
-`k`, `averageMode` y `CrossAverage`.
-
-## Artefactos por tipo
-
-Todos los experimentos completados generan `model.joblib`, `predictions.csv`,
-`metrics.json`, `model.txt`, `generation_history.json`, `test_results.json` y
-`experiment.json`.
-
-Los experimentos de clasificación agregan `classification_report.json` y
-`confusion_matrix.json`. El endpoint
-`GET /api/v1/experiments/{id}/visualization` entrega el historial y una muestra
-de resultados de prueba para el frontend.
-
-## Endpoint Acerca de
-
-`GET /api/v1/about` es público y devuelve metadatos de versión, autoría,
-instituciones de apoyo, referencias, código fuente y términos legales. No
-requiere JWT.

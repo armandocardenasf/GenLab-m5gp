@@ -10,13 +10,20 @@ import {
 import { AuthProvider, useAuth } from './auth';
 import { Layout } from './components';
 import {
+  Batches,
+  DashboardV2,
+  ExperimentGroupDetail,
+  ExperimentGroups,
+  NewExperimentGroup,
+  ParameterPresets,
+  RunDetail,
+  Runs,
+} from './lab';
+import { ComparisonReportDetail, ComparisonReports } from './comparison';
+import {
   About,
   Datasets,
-  ExperimentDetail,
-  Experiments,
   Login,
-  NewExperiment,
-  Overview,
   Resources,
 } from './pages';
 import {
@@ -26,6 +33,8 @@ import {
   useI18n,
 } from './i18n';
 import './styles.css';
+import './lab.css';
+import './comparison.css';
 
 function App() {
   const { user, loading } = useAuth();
@@ -37,11 +46,17 @@ function App() {
   return (
     <Layout>
       <Routes>
-        <Route path="/" element={<Overview />} />
+        <Route path="/" element={<DashboardV2 />} />
         <Route path="/datasets" element={<Datasets />} />
-        <Route path="/experiments" element={<Experiments />} />
-        <Route path="/experiments/new" element={<NewExperiment />} />
-        <Route path="/experiments/:id" element={<ExperimentDetail />} />
+        <Route path="/experiments" element={<ExperimentGroups />} />
+        <Route path="/experiments/new" element={<NewExperimentGroup />} />
+        <Route path="/experiments/:id" element={<ExperimentGroupDetail />} />
+        <Route path="/runs" element={<Runs />} />
+        <Route path="/runs/:id" element={<RunDetail />} />
+        <Route path="/batches" element={<Batches />} />
+        <Route path="/parameters" element={<ParameterPresets />} />
+        <Route path="/comparisons" element={<ComparisonReports />} />
+        <Route path="/comparisons/:id" element={<ComparisonReportDetail />} />
         <Route path="/resources" element={<Resources />} />
         <Route path="/about" element={<About />} />
         <Route path="*" element={<Navigate to="/" />} />

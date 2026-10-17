@@ -1,70 +1,263 @@
-# Python
+# =====================================================================
+# GenLab M5GP - .gitignore
+# Mantiene en Git únicamente código, documentación y archivos del proyecto.
+# Excluye datos locales, experimentos, resultados, artefactos y entornos.
+# =====================================================================
+
+# ---------------------------------------------------------------------
+# Python: entornos, caché, compilación y pruebas
+# ---------------------------------------------------------------------
 __pycache__/
 *.py[cod]
+*$py.class
 *.so
+*.pyd
+*.dylib
+*.egg
 *.egg-info/
+.eggs/
+build/
+dist/
+pip-wheel-metadata/
+
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
 .coverage
+.coverage.*
 htmlcov/
+coverage.xml
+
+# Entornos virtuales / Conda locales
 .venv/
 venv/
 env/
+ENV/
+.conda/
+conda-env/
+.python-version
 
-# Local configuration and credentials
+# Jupyter
+.ipynb_checkpoints/
+
+# ---------------------------------------------------------------------
+# Configuración local, credenciales y secretos
+# ---------------------------------------------------------------------
 .env
 .env.*
 !.env.example
+
 *.pem
 *.key
+*.crt
+*.p12
+*.pfx
 
-# Runtime databases, uploads, logs and generated artifacts
+# Configuración local opcional
+*.local
+*.local.json
+*.local.yaml
+*.local.yml
+settings.local.*
+config.local.*
+
+# ---------------------------------------------------------------------
+# Bases de datos y archivos temporales de SQLite
+# ---------------------------------------------------------------------
 *.db
 *.sqlite
 *.sqlite3
-data/*
-!data/README.md
-!data/uploads/
-!data/uploads/.gitkeep
-!data/artifacts/
-!data/artifacts/.gitkeep
-!data/logs/
-!data/logs/.gitkeep
-backend/data/
-log/
-logs/
-*.log
+*.db-journal
+*.db-shm
+*.db-wal
+*.sqlite-journal
+*.sqlite-shm
+*.sqlite-wal
 
-# Frontend dependencies and builds
-frontend/node_modules/
-frontend/dist/
-frontend/.vite/
-frontend/*.tsbuildinfo
+# ---------------------------------------------------------------------
+# Datos de ejecución de GenLab
+#
+# Se conserva únicamente la estructura mínima versionada mediante .gitkeep
+# y, cuando existe, data/README.md.
+# ---------------------------------------------------------------------
+/data/**
+
+!/data/README.md
+
+!/data/uploads/
+!/data/uploads/.gitkeep
+
+!/data/artifacts/
+!/data/artifacts/.gitkeep
+
+!/data/logs/
+!/data/logs/.gitkeep
+
+# Posibles directorios adicionales de ejecución
+/data/experiments/
+/data/runs/
+/data/results/
+/data/reports/
+/data/comparisons/
+/data/exports/
+/data/cache/
+/data/tmp/
+
+# Datos/runtime que pudieran generarse dentro del backend
+/backend/data/
+/backend/log/
+/backend/logs/
+/backend/uploads/
+/backend/artifacts/
+/backend/results/
+/backend/reports/
+/backend/exports/
+
+# ---------------------------------------------------------------------
+# Experimentos, corridas y resultados locales fuera de data/
+# ---------------------------------------------------------------------
+/local_experiments/
+/local_runs/
+/local_results/
+/local_reports/
+/local_exports/
+/local_data/
+/runtime/
+/tmp/
+/temp/
+
+# Directorios de salida frecuentes
+/results/
+/outputs/
+/exports/
+/generated/
+/artifacts/
+/logs/
+
+# Logs de ejecución
+*.log
+*.out
+*.err
+
+# Archivos PID / locks locales
+*.pid
+*.lock
+
+# ---------------------------------------------------------------------
+# Exportaciones y artefactos generados por experimentos
+# No se excluyen globalmente CSV/JSON/XLSX porque pueden existir archivos
+# legítimos de documentación o pruebas dentro del repositorio.
+# ---------------------------------------------------------------------
+/experiment-results/
+/experiment_results/
+/run-results/
+/run_results/
+/comparison-results/
+/comparison_results/
+/generated-reports/
+/generated_reports/
+
+# ---------------------------------------------------------------------
+# Frontend: dependencias y compilación
+# ---------------------------------------------------------------------
+/frontend/node_modules/
+/frontend/dist/
+/frontend/.vite/
+/frontend/.cache/
+/frontend/coverage/
+/frontend/*.tsbuildinfo
+
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+pnpm-debug.log*
 
-# IDE / operating system
-.DS_Store
-Thumbs.db
-.idea/
+# Variables Vite locales
+/frontend/.env
+/frontend/.env.*
+!/frontend/.env.example
+
+# ---------------------------------------------------------------------
+# Código fuente original M5GP 2.0 descargado localmente
+#
+# GenLab instala estos archivos mediante tools/install_core_from_github.py.
+# No forman parte del repositorio principal GenLab-m5gp.
+# ---------------------------------------------------------------------
+/core/src/m5gp/m5gp.py
+/core/src/m5gp/m5gpGlobals.py
+/core/src/m5gp/m5gpCudaMethods.py
+/core/src/m5gp/m5gpCumlMethods.py
+/core/src/m5gp/m5gpCumlMethods2.py
+/core/src/m5gp/m5gpMod1.py
+/core/src/m5gp/m5gpMod2.py
+/core/src/m5gp/m5gpMod3.py
+/core/src/m5gp/m5gpSymBuilder.py
+/core/src/m5gp/SOURCE_INFO.json
+
+# Pruebas históricas copiadas desde el repositorio externo M5GP
+/core/tests/original/
+
+# ---------------------------------------------------------------------
+# Paquetes de actualización, respaldos y archivos generados localmente
+# ---------------------------------------------------------------------
+.genlab-update-backup-*/
+*-genlab-*-backup-*/
+*genlab*backup*/
+
+# Paquetes incrementales generados para actualización local
+/GenLab_M5GP_*_update*/
+/GenLab_M5GP_*_actualizacion*/
+/GenLab_M5GP_*_actualización*/
+/GenLab_M5GP_*comparativos*/
+/GenLab_M5GP_*update*.zip
+/GenLab_M5GP_*actualizacion*.zip
+/GenLab_M5GP_*comparativos*.zip
+/*.sha256
+
+# Respaldos y copias de archivos
+*.bak
+*.backup
+*.old
+*.orig
+*.rej
+*~
+*.tmp
+*.temp
 *.swp
 *.swo
 
-# Original M5GP 2.0 sources downloaded by tools/install_core_from_github.py
-# These files are intentionally NOT part of the GenLab-m5gp repository.
-core/src/m5gp/m5gp.py
-core/src/m5gp/m5gpGlobals.py
-core/src/m5gp/m5gpCudaMethods.py
-core/src/m5gp/m5gpCumlMethods.py
-core/src/m5gp/m5gpCumlMethods2.py
-core/src/m5gp/m5gpMod1.py
-core/src/m5gp/m5gpMod2.py
-core/src/m5gp/m5gpMod3.py
-core/src/m5gp/m5gpSymBuilder.py
-core/src/m5gp/SOURCE_INFO.json
+# ---------------------------------------------------------------------
+# IDE / editores
+# ---------------------------------------------------------------------
+.vscode/
+.idea/
+*.code-workspace
 
-# Historical tests optionally copied from the M5GP 2.0 repository.
-# GenLab keeps its own direct-execution test template in core/tests/m5gp_Test.py.
-core/tests/original/
+# Si se desea versionar configuración compartida de VS Code,
+# elimine /.vscode/ de esta sección y agregue excepciones específicas.
+
+# ---------------------------------------------------------------------
+# Sistema operativo
+# ---------------------------------------------------------------------
+.DS_Store
+.AppleDouble
+.LSOverride
+Thumbs.db
+Desktop.ini
+ehthumbs.db
+
+# ---------------------------------------------------------------------
+# Archivos comprimidos generados localmente
+# ---------------------------------------------------------------------
+*.tar
+*.tar.gz
+*.tgz
+*.7z
+*.rar
+
+# Los ZIP se ignoran únicamente cuando son paquetes de actualización
+# definidos arriba. No se usa *.zip global para permitir ZIP legítimos
+# que formen parte del proyecto.
+
+# Metadatos de Windows generados al copiar o descargar archivos en WSL
+*Zone.Identifier*

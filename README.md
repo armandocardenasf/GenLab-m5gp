@@ -1,109 +1,462 @@
 # GenLab M5GP
 
-Laboratorio Web y API REST para M5GP 2.0, conservando su uso directo mediante
-scripts Python y su integración con SRBench v2.
+GenLab M5GP es una plataforma Web y API REST para ejecutar, administrar y analizar experimentos de **M5GP 2.0** sobre GPU. La plataforma conserva el motor M5GP como una fuente independiente y añade una capa de experimentación reproducible para regresión simbólica y clasificación, con múltiples datasets, múltiples corridas, validación Train/Test o K-fold, lotes de ejecución, resultados agregados e individuales, visualizaciones y exportación de resultados.
 
-## Estructura definitiva: una sola fuente
+Repositorio GenLab:
 
 ```text
-GenLab_M5GP/
+https://github.com/armandocardenasf/GenLab-m5gp
+```
+
+Motor M5GP 2.0:
+
+```text
+https://github.com/armandocardenasf/m5gp-2.0
+```
+
+---
+
+## 1. Modelo de trabajo de GenLab
+
+GenLab distingue tres niveles de ejecución y una capa de análisis:
+
+- **Corrida / ejecución (run):** una ejecución individual de M5GP sobre un dataset, con sus parámetros, semilla, partición de datos, métricas, modelo y artefactos.
+- **Experimento:** agrupa uno o varios datasets y una o más corridas por dataset. Conserva los resultados individuales y calcula resultados agregados.
+- **Lote (batch):** conjunto de experimentos guardados que pueden enviarse a la cola de ejecución.
+- **Comparativo / reporte:** análisis guardado que integra dos o más experimentos del mismo tipo para comparar configuraciones, métricas, variabilidad, significancia estadística y costo computacional.
+
+La tabla histórica `experiments` se mantiene por compatibilidad y sus registros representan corridas individuales en el modelo actual. Los experimentos agrupados, asociaciones con datasets, predefinidos y lotes se almacenan en tablas adicionales.
+
+### Funciones principales
+
+La versión actual incluye:
+
+- regresión simbólica y clasificación con M5GP 2.0;
+- carga de datasets CSV y TSV;
+- múltiples datasets dentro de un experimento;
+- múltiples corridas por dataset;
+- validación Holdout y K-fold;
+- perfiles de ejecución y predefinidos personalizados;
+- constructor visual de parámetros que genera la configuración JSON de M5GP;
+- cola automática de corridas y ejecución por lotes;
+- seguimiento de avance por corrida y generación;
+- métricas Train/Test;
+- resultados agregados e individuales por dataset;
+- gráficas de regresión tipo SRBench para `R² Test`, `RMSE Test`, `Model Size` y `Training Time`;
+- gráfica observado contra predicho y correlación de Pearson;
+- exportación de resultados a JSON y Excel `.xlsx`;
+- comparativos guardados entre experimentos de regresión o entre experimentos de clasificación;
+- matriz pareada de Wilcoxon con corrección de Holm-Bonferroni;
+- análisis de impacto de parámetros y correlación de Spearman;
+- análisis de escalamiento computacional por muestras, características y puntos del dataset;
+- descarga de artefactos de cada corrida;
+- interfaz bilingüe Español/English;
+- autenticación JWT y aislamiento de recursos por usuario;
+- control de una corrida activa por GPU.
+
+---
+
+## 2. Estructura del repositorio
+
+```text
+GenLab-m5gp/
 ├── core/
-│   ├── src/m5gp/               # única copia M5GP usada por GenLab
-│   └── tests/                  # scripts directos: python m5gp_Test.py
+│   ├── src/m5gp/               # paquete canónico usado por GenLab
+│   └── tests/                  # pruebas directas del motor
 ├── integrations/
-│   └── srbench/                # adaptador + instalador; no duplica el motor
-├── backend/                    # FastAPI, JWT, datasets, experimentos y GPU
-├── frontend/                   # React y sesiones de usuario
-├── tools/                      # instalador del core desde GitHub
-├── docs/
-├── data/
-└── infra/
+│   └── srbench/                # adaptador e instalador para SRBench
+├── backend/                    # FastAPI, JWT, datasets, experimentos y workers
+├── frontend/                   # React, TypeScript y Vite
+├── tools/                      # instalación y verificación del proyecto
+├── docs/                       # documentación técnica
+├── data/                       # base SQLite, uploads, artefactos y logs
+├── docker-compose.yml
+└── .env.example
 ```
 
-No existe `core/methods` ni `core/methods/src`.
+GenLab no mantiene una segunda copia versionada del motor M5GP. Los archivos originales de M5GP 2.0 se descargan mediante `tools/install_core_from_github.py` y se colocan en `core/src/m5gp/`. Estos archivos están excluidos de Git mediante `.gitignore`.
 
-## 1. Obtener el código original M5GP
+---
+
+## 3. Requisitos
+
+### 3.1 Requisitos generales
+
+Se requiere:
+
+- Git;
+- Python **3.10 a 3.13**;
+- Conda/Miniconda/Anaconda para el entorno GPU recomendado;
+- `pip` dentro del entorno Conda;
+- Node.js para el frontend; se recomienda **Node.js 22**;
+- npm;
+- navegador Web moderno.
+
+Para ejecutar realmente M5GP se requiere además:
+
+- GPU NVIDIA compatible;
+- controlador NVIDIA operativo;
+- entorno CUDA compatible con la versión de M5GP instalada;
+- dependencias GPU utilizadas por M5GP, particularmente RAPIDS/cuML y las bibliotecas CUDA que requiera el motor.
+
+Compruebe la GPU con:
+
+```bash
+nvidia-smi
+```
+
+El backend y el frontend pueden arrancar sin GPU para probar autenticación, navegación, datasets y configuración. Las corridas de M5GP requieren el entorno GPU completo.
+
+### 3.2 Dependencias GPU de M5GP
+
+Los archivos `core/pyproject.toml` y `backend/pyproject.toml` instalan las dependencias generales de Python. El backend declara además SciPy para las pruebas estadísticas de Wilcoxon y correlación de Spearman. Estos archivos **no configuran por sí solos el entorno CUDA/RAPIDS/cuML**. Ese entorno debe existir previamente en el sistema o entorno Python donde se ejecutará el worker.
+
+La instalación de CUDA/RAPIDS depende de la GPU, versión de controlador y versión de Python disponibles. Debe utilizarse una combinación compatible con el motor M5GP 2.0 que se vaya a instalar.
+
+---
+
+## 4. Instalación local recomendada
+
+### 4.1 Clonar GenLab
+
+```bash
+git clone https://github.com/armandocardenasf/GenLab-m5gp.git
+cd GenLab-m5gp
+```
+
+### 4.2 Activar el entorno Conda con CUDA/RAPIDS/cuML
+
+Para la instalación actual de GenLab M5GP se recomienda utilizar **el entorno Conda que ya contiene CUDA, RAPIDS/cuML y las dependencias de M5GP**. No es necesario crear un entorno adicional con `python3 -m venv .venv`.
+
+Consulte los entornos disponibles:
+
+```bash
+conda env list
+```
+
+Active el entorno que utiliza normalmente para M5GP:
+
+```bash
+conda activate <NOMBRE_ENTORNO>
+```
+
+Compruebe que la terminal está utilizando el Python de Conda:
+
+```bash
+which python
+python --version
+```
+
+Verifique las bibliotecas principales antes de instalar GenLab:
+
+```bash
+python -c "import cupy; print('CuPy:', cupy.__version__)"
+python -c "import cuml; print('cuML:', cuml.__version__)"
+python -c "import numba; print('Numba:', numba.__version__)"
+python -c "import numpy, pandas, sklearn; print('Dependencias base OK')"
+```
+
+También es conveniente confirmar que el sistema detecta la GPU:
+
+```bash
+nvidia-smi
+```
+
+Si el entorno Conda existente se utiliza para otros experimentos y se desea evitar modificarlo, puede clonarse antes de instalar GenLab:
+
+```bash
+conda create --name genlab-m5gp --clone <NOMBRE_ENTORNO_ORIGINAL>
+conda activate genlab-m5gp
+```
+
+Esto es opcional. Si el entorno original ya está validado y puede recibir las dependencias del backend, puede utilizarse directamente.
+
+> **Importante:** si previamente creó y activó un entorno con `python3 -m venv .venv`, desactívelo antes de activar Conda:
+>
+> ```bash
+> deactivate
+> conda activate <NOMBRE_ENTORNO>
+> ```
+>
+> La carpeta `.venv` puede conservarse o eliminarse si ya no se utilizará. Eliminarla es opcional:
+>
+> ```bash
+> rm -rf .venv
+> ```
+
+#### Alternativa: entorno `venv`
+
+Un entorno `.venv` puede utilizarse en instalaciones que no dependan de un entorno Conda/RAPIDS previamente configurado. Sin embargo, `venv` **no instala CUDA ni RAPIDS/cuML por sí mismo**, por lo que no es la opción principal para la instalación GPU actual.
+
+Linux/macOS:
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip setuptools wheel
+```
+
+### 4.3 Actualizar herramientas Python dentro del entorno activo
+
+Con el entorno Conda ya activado:
+
+```bash
+python -m pip install --upgrade pip setuptools wheel
+```
+
+### 4.4 Instalar el código original de M5GP 2.0
+
+Desde la raíz de GenLab:
 
 ```bash
 python tools/install_core_from_github.py --ref main --copy-tests
+```
+
+El comando:
+
+1. descarga el repositorio `m5gp-2.0`;
+2. copia los módulos originales en `core/src/m5gp/`;
+3. registra el commit utilizado en `SOURCE_INFO.json`;
+4. opcionalmente copia los scripts de prueba con `--copy-tests`.
+
+Para una ejecución científica reproducible se recomienda sustituir `main` por un tag o commit específico:
+
+```bash
+python tools/install_core_from_github.py --ref <tag-o-commit> --copy-tests
+```
+
+Instale el paquete local:
+
+```bash
 python -m pip install -e core
 ```
 
-El primer comando clona el repositorio M5GP 2.0 y coloca los módulos en la única
-carpeta `core/src/m5gp`. No cambia `m5gp.py`, `compute_individuals`, los kernels
-CUDA, selección, UMAD, supervivencia, reemplazo, predicción ni construcción
-simbólica.
+### 4.5 Instalar el backend
 
-## 2. Ejecutar M5GP directamente
-
-```bash
-cd core/tests
-python m5gp_Test.py
-```
-
-No requiere backend, API, JWT ni frontend.
-
-## 3. Instalar M5GP en SRBench v2
-
-```bash
-bash integrations/srbench/install.sh /ruta/srbench --ref main
-```
-
-El instalador crea en SRBench:
-
-```text
-experiment/methods/m5gpRegressor.py
-experiment/methods/src/m5gp/*.py
-```
-
-La referencia Git puede fijarse a un tag o commit con `--ref`.
-
-## 4. Backend
+Instalación normal:
 
 ```bash
 python -m pip install -e backend
-uvicorn genlab_api.main:app --app-dir backend/src \
-  --host 0.0.0.0 --port 8000 --workers 1
 ```
 
-El worker asigna una tarea por GPU. En un equipo con N GPUs puede mantener N
-tareas M5GP simultáneas, una por dispositivo; cuando todas están ocupadas se
-rechaza una ejecución nueva.
-
-## 5. Probar la API REST
-
-La API expone documentación interactiva en:
-
-```text
-http://localhost:8000/docs
-```
-
-Antes de realizar la prueba, instale el núcleo y el backend y mantenga el
-servidor activo en una terminal:
+Instalación para desarrollo y pruebas:
 
 ```bash
-cd /ruta/GenLab_M5GP
+python -m pip install -e 'backend[test]'
+```
+
+Si utilizará PostgreSQL:
+
+```bash
+python -m pip install -e 'backend[postgres]'
+```
+
+### 4.6 Instalar el frontend
+
+```bash
+cd frontend
+npm ci --no-audit --no-fund
+cd ..
+```
+
+`npm ci` utiliza las versiones registradas en `package-lock.json` y es la forma recomendada para reproducir la instalación del frontend.
+
+### 4.7 Resumen rápido de instalación con Conda
+
+Para una instalación ya preparada con CUDA/RAPIDS/cuML:
+
+```bash
+cd /ruta/GenLab-m5gp
+conda activate <NOMBRE_ENTORNO>
+
+python -m pip install --upgrade pip setuptools wheel
 python tools/install_core_from_github.py --ref main --copy-tests
 python -m pip install -e core
-python -m pip install -e backend
+python -m pip install -e 'backend[test]'
+
 cp .env.example .env
 
-uvicorn genlab_api.main:app --app-dir backend/src \
-  --host 0.0.0.0 --port 8000 --workers 1
+cd frontend
+npm ci --no-audit --no-fund
+npm run build
+cd ..
 ```
 
-En otra terminal, ejecute el siguiente flujo de prueba. Los comandos usan
-`curl` y Python para leer las respuestas JSON; no requieren `jq`.
+Con esto quedan instalados el núcleo M5GP, el backend y el frontend. La ejecución de cada servicio se describe en las secciones 7, 8 y 9.
 
-### 5.1 Comprobar el servicio
+---
+
+## 5. Configuración del backend
+
+Copie el archivo de ejemplo:
 
 ```bash
-API_URL="http://localhost:8000"
-
-curl -sS "$API_URL/health" | python -m json.tool
+cp .env.example .env
 ```
 
-La respuesta esperada contiene:
+En Windows puede copiarlo manualmente como `.env`.
+
+### 5.1 Variables de entorno
+
+El backend reconoce las siguientes variables:
+
+| Variable | Valor predeterminado | Descripción |
+|---|---|---|
+| `GENLAB_ENV` | `development` | Identificador del entorno. |
+| `GENLAB_SECRET_KEY` | valor de desarrollo | Clave para firmar tokens JWT. Debe cambiarse en una instalación real. |
+| `GENLAB_DATABASE_URL` | `sqlite:///./data/genlab.db` | URL SQLAlchemy de la base de datos. |
+| `GENLAB_ACCESS_TOKEN_MINUTES` | `30` | Duración del access token. |
+| `GENLAB_REFRESH_TOKEN_DAYS` | `7` | Duración del refresh token. |
+| `GENLAB_CORS_ORIGINS` | `http://localhost:5173` | Orígenes permitidos, separados por comas. |
+| `GENLAB_DATA_DIR` | `./data` | Directorio para uploads, artefactos y logs. |
+| `GENLAB_MAX_UPLOAD_MB` | `512` | Tamaño máximo de archivo cargado. |
+| `GENLAB_TEST_SIZE` | `0.25` | Proporción Test predeterminada usada por rutas históricas. |
+| `GENLAB_RANDOM_STATE` | `42` | Semilla predeterminada usada por rutas históricas. |
+| `GENLAB_LEASE_TTL_SECONDS` | `86400` | Tiempo máximo de una reserva GPU sin worker válido. |
+| `GENLAB_API_PREFIX` | `/api/v1` | Prefijo principal de la API. |
+| `GENLAB_APP_NAME` | `GenLab M5GP API` | Nombre mostrado por FastAPI. |
+| `GENLAB_APP_VERSION` | `1.0.0` | Versión mostrada por `/health` y `/about`. |
+| `GENLAB_RELEASE_CHANNEL` | `stable` | Canal de publicación. |
+| `GENLAB_GPU_COUNT` | vacío | Si se define, fuerza el número lógico de GPUs; si está vacío se utiliza `nvidia-smi`. |
+
+Ejemplo de `.env` para desarrollo local:
+
+```env
+GENLAB_SECRET_KEY=reemplace-esta-clave-por-una-cadena-segura
+GENLAB_DATABASE_URL=sqlite:///./data/genlab.db
+GENLAB_CORS_ORIGINS=http://localhost:5173
+GENLAB_ACCESS_TOKEN_MINUTES=30
+GENLAB_REFRESH_TOKEN_DAYS=7
+GENLAB_DATA_DIR=./data
+GENLAB_APP_VERSION=1.0.0
+GENLAB_RELEASE_CHANNEL=development
+```
+
+Puede generar una clave aleatoria con:
+
+```bash
+python -c "import secrets; print(secrets.token_urlsafe(48))"
+```
+
+### 5.2 CORS
+
+Para desarrollo con Vite:
+
+```env
+GENLAB_CORS_ORIGINS=http://localhost:5173
+```
+
+Para permitir varios orígenes:
+
+```env
+GENLAB_CORS_ORIGINS=http://localhost:5173,http://localhost:4173,https://genlab.example.org
+```
+
+Después de modificar `.env`, reinicie el backend.
+
+### 5.3 Directorios de datos
+
+Por defecto se utilizan:
+
+```text
+data/genlab.db
+data/uploads/
+data/artifacts/
+data/logs/
+```
+
+`GENLAB_DATA_DIR` se convierte a una ruta absoluta al arrancar la API. Para evitar confusiones con rutas relativas se recomienda iniciar Uvicorn desde la raíz del repositorio.
+
+---
+
+## 6. Base de datos
+
+### 6.1 SQLite
+
+Es la opción predeterminada:
+
+```env
+GENLAB_DATABASE_URL=sqlite:///./data/genlab.db
+```
+
+Es adecuada para desarrollo y pruebas en una sola instalación.
+
+### 6.2 PostgreSQL
+
+Ejemplo:
+
+```env
+GENLAB_DATABASE_URL=postgresql+psycopg://genlab:password@localhost:5432/genlab
+```
+
+Instale primero:
+
+```bash
+python -m pip install -e 'backend[postgres]'
+```
+
+### 6.3 Creación del esquema
+
+Al iniciar FastAPI se ejecuta:
+
+```python
+Base.metadata.create_all(engine)
+```
+
+Esto crea las tablas que no existan, incluidas las utilizadas para experimentos agrupados, corridas, predefinidos, lotes y reportes comparativos (`comparison_reports`). Actualmente el proyecto no utiliza Alembic para migraciones de esquema.
+
+Antes de instalar una actualización sobre datos reales, respalde como mínimo:
+
+```text
+data/genlab.db
+data/uploads/
+data/artifacts/
+data/logs/
+```
+
+En PostgreSQL realice además un respaldo de la base de datos con la herramienta administrativa correspondiente.
+
+---
+
+## 7. Ejecutar el backend
+
+Desde la raíz del proyecto y con el entorno Conda que contiene CUDA/RAPIDS/cuML y M5GP activado:
+
+```bash
+conda activate <NOMBRE_ENTORNO>
+```
+
+Después ejecute el backend:
+
+### Desarrollo
+
+```bash
+uvicorn genlab_api.main:app \
+  --app-dir backend/src \
+  --host 0.0.0.0 \
+  --port 8000 \
+  --reload
+```
+
+### Ejecución estable
+
+```bash
+uvicorn genlab_api.main:app \
+  --app-dir backend/src \
+  --host 0.0.0.0 \
+  --port 8000 \
+  --workers 1
+```
+
+Se recomienda mantener **un proceso Uvicorn** para el despliegue actual y dejar que GenLab gestione la concurrencia mediante reservas GPU y workers de corridas.
+
+Verificación:
+
+```bash
+curl -sS http://localhost:8000/health | python -m json.tool
+```
+
+Respuesta esperada:
 
 ```json
 {
@@ -113,665 +466,557 @@ La respuesta esperada contiene:
 }
 ```
 
-### 5.2 Registrar un usuario e iniciar sesión
-
-```bash
-EMAIL="profesor@example.com"
-PASSWORD="GenLabPrueba2026!"
-
-curl -sS -X POST "$API_URL/api/v1/auth/register" \
-  -H "Content-Type: application/json" \
-  -d "{\"email\":\"$EMAIL\",\"full_name\":\"Usuario de prueba\",\"password\":\"$PASSWORD\"}" \
-  | python -m json.tool
-
-TOKENS=$(curl -sS -X POST "$API_URL/api/v1/auth/login" \
-  -H "Content-Type: application/json" \
-  -d "{\"email\":\"$EMAIL\",\"password\":\"$PASSWORD\"}")
-
-ACCESS_TOKEN=$(printf '%s' "$TOKENS" | \
-  python -c 'import json,sys; print(json.load(sys.stdin)["access_token"])')
-
-REFRESH_TOKEN=$(printf '%s' "$TOKENS" | \
-  python -c 'import json,sys; print(json.load(sys.stdin)["refresh_token"])')
-
-curl -sS "$API_URL/api/v1/auth/me" \
-  -H "Authorization: Bearer $ACCESS_TOKEN" | python -m json.tool
-```
-
-Si el usuario ya fue registrado, el endpoint de registro responderá `409`; en
-ese caso puede continuar directamente con el inicio de sesión.
-
-### 5.3 Crear y cargar un dataset de prueba
-
-```bash
-cat > /tmp/genlab_demo.csv <<'CSV'
-x1,x2,target
-1.0,2.0,5.0
-2.0,1.0,5.0
-3.0,4.0,11.0
-4.0,3.0,11.0
-5.0,6.0,17.0
-6.0,5.0,17.0
-7.0,8.0,23.0
-8.0,7.0,23.0
-CSV
-
-DATASET=$(curl -sS -X POST "$API_URL/api/v1/datasets" \
-  -H "Authorization: Bearer $ACCESS_TOKEN" \
-  -F "name=Dataset demostrativo" \
-  -F "file=@/tmp/genlab_demo.csv;type=text/csv")
-
-printf '%s' "$DATASET" | python -m json.tool
-
-DATASET_ID=$(printf '%s' "$DATASET" | \
-  python -c 'import json,sys; print(json.load(sys.stdin)["id"])')
-
-curl -sS "$API_URL/api/v1/datasets/$DATASET_ID/preview" \
-  -H "Authorization: Bearer $ACCESS_TOKEN" | python -m json.tool
-```
-
-La misma ruta acepta archivos TSV. En ese caso, utilice una extensión `.tsv`
-y datos separados por tabuladores, por ejemplo:
-
-```bash
-printf 'x1\tx2\ttarget\n1.0\t2.0\t5.0\n2.0\t1.0\t5.0\n' \
-  > /tmp/genlab_demo.tsv
-
-curl -sS -X POST "$API_URL/api/v1/datasets" \
-  -H "Authorization: Bearer $ACCESS_TOKEN" \
-  -F "name=Dataset TSV demostrativo" \
-  -F "file=@/tmp/genlab_demo.tsv;type=text/tab-separated-values" \
-  | python -m json.tool
-```
-
-El backend determina el separador por la extensión: coma para `.csv` y
-tabulador para `.tsv`. La vista previa y el worker de experimentos utilizan la
-misma regla.
-
-### 5.4 Crear un experimento de regresión
-
-Para regresión, `evaluationMethod` puede seleccionar cualquiera de los métodos
-definidos por el estimador original de M5GP:
+Documentación OpenAPI:
 
 ```text
-evaluationMethod = 0   RMSE directo
-evaluationMethod = 1   R² directo
-evaluationMethod = 2   Linear Regression (cuML)
-evaluationMethod = 3   Lasso Regression (cuML)
-evaluationMethod = 4   Ridge Regression (cuML)
-evaluationMethod = 5   Kernel Ridge Regression
-evaluationMethod = 6   ElasticNet Regression (cuML)
-evaluationMethod = 7   MiniBatch sin regularización (Linear Regression)
-evaluationMethod = 8   MiniBatch Lasso
-evaluationMethod = 9   MiniBatch Ridge
-evaluationMethod = 10  MiniBatch ElasticNet
-
-scorer = 0  RMSE
-scorer = 1  RMSE
-scorer = 2  R²
+http://localhost:8000/docs
 ```
 
-El valor seleccionado se envía sin transformación al constructor original de
-`m5gpRegressor` y queda almacenado en `parameters`, `metrics.json` y
-`experiment.json` para mantener la reproducibilidad del experimento.
+---
 
-```bash
-EXPERIMENT=$(curl -sS -X POST "$API_URL/api/v1/experiments" \
-  -H "Authorization: Bearer $ACCESS_TOKEN" \
-  -H "Content-Type: application/json" \
-  --data "$(cat <<JSON
-{
-  "name": "Prueba API M5GP",
-  "dataset_id": "$DATASET_ID",
-  "task_type": "regression",
-  "target_column": "target",
-  "parameters": {
-    "generations": 2,
-    "Individuals": 64,
-    "GenesIndividuals": 32,
-    "mutationProb": 0.1,
-    "mutationDeleteRateProb": 0.05,
-    "sizeTournament": 0.15,
-    "evaluationMethod": 4,
-    "scorer": 0,
-    "log": 1,
-    "verbose": 1
-  }
-}
-JSON
-)")
+## 8. Configurar y ejecutar el frontend
 
-printf '%s' "$EXPERIMENT" | python -m json.tool
+### 8.1 Dirección de la API
 
-EXPERIMENT_ID=$(printf '%s' "$EXPERIMENT" | \
-  python -c 'import json,sys; print(json.load(sys.stdin)["id"])')
-```
-
-### 5.5 Crear un experimento de clasificación
-
-La misma API permite definir un experimento de clasificación mediante
-`task_type: "classification"`. En este caso, `evaluationMethod` selecciona el
-clasificador del motor original y `scorer` selecciona la métrica utilizada por
-M5GP durante la evaluación:
-
-```text
-evaluationMethod = 0  Logistic Regression
-evaluationMethod = 1  Support Vector Classifier
-evaluationMethod = 2  Random Forest Classifier
-evaluationMethod = 3  K Neighbors Classifier
-
-scorer = 0  Accuracy
-scorer = 1  ROC AUC
-scorer = 2  F1 Score
-scorer = 3  Average Precision
-```
-
-Ejemplo:
-
-```bash
-CLASSIFICATION_EXPERIMENT=$(curl -sS -X POST "$API_URL/api/v1/experiments" \
-  -H "Authorization: Bearer $ACCESS_TOKEN" \
-  -H "Content-Type: application/json" \
-  --data "$(cat <<JSON
-{
-  "name": "Clasificación M5GP",
-  "dataset_id": "$DATASET_ID",
-  "task_type": "classification",
-  "target_column": "class",
-  "parameters": {
-    "generations": 2,
-    "Individuals": 64,
-    "GenesIndividuals": 32,
-    "mutationProb": 0.1,
-    "mutationDeleteRateProb": 0.05,
-    "sizeTournament": 0.15,
-    "evaluationMethod": 0,
-    "scorer": 0,
-    "crossVal": true,
-    "k": 3,
-    "averageMode": "macro",
-    "CrossAverage": false,
-    "log": 1,
-    "verbose": 1
-  }
-}
-JSON
-)" )
-
-printf '%s' "$CLASSIFICATION_EXPERIMENT" | python -m json.tool
-```
-
-Los valores de la columna objetivo deben ser compatibles con el clasificador
-original de M5GP. El backend selecciona `m5gpClassifier` cuando el tipo de tarea
-es `classification`; para regresión continúa seleccionando `m5gpRegressor`.
-
-### 5.6 Consultar GPUs e iniciar la ejecución
-
-```bash
-curl -sS "$API_URL/api/v1/gpus" \
-  -H "Authorization: Bearer $ACCESS_TOKEN" | python -m json.tool
-
-curl -sS -X POST \
-  "$API_URL/api/v1/experiments/$EXPERIMENT_ID/run" \
-  -H "Authorization: Bearer $ACCESS_TOKEN" | python -m json.tool
-```
-
-La ejecución requiere un equipo con GPU NVIDIA y el entorno CUDA/RAPIDS/cuML
-utilizado por M5GP. Si no hay una GPU disponible, la API responderá `409` con el
-mensaje correspondiente.
-
-### 5.7 Consultar el estado hasta finalizar
-
-```bash
-while true; do
-  RESULT=$(curl -sS \
-    "$API_URL/api/v1/experiments/$EXPERIMENT_ID" \
-    -H "Authorization: Bearer $ACCESS_TOKEN")
-
-  printf '%s' "$RESULT" | python -m json.tool
-  STATUS=$(printf '%s' "$RESULT" | \
-    python -c 'import json,sys; print(json.load(sys.stdin)["status"])')
-
-  case "$STATUS" in
-    completed|failed|cancelled|rejected) break ;;
-  esac
-
-  sleep 5
-done
-```
-
-Cuando el estado sea `completed`, pueden descargarse los resultados:
-
-```bash
-curl -sS \
-  "$API_URL/api/v1/experiments/$EXPERIMENT_ID/artifacts/metrics.json" \
-  -H "Authorization: Bearer $ACCESS_TOKEN" \
-  -o metrics.json
-
-curl -sS \
-  "$API_URL/api/v1/experiments/$EXPERIMENT_ID/artifacts/model.txt" \
-  -H "Authorization: Bearer $ACCESS_TOKEN" \
-  -o model.txt
-
-curl -sS \
-  "$API_URL/api/v1/experiments/$EXPERIMENT_ID/artifacts/predictions.csv" \
-  -H "Authorization: Bearer $ACCESS_TOKEN" \
-  -o predictions.csv
-
-curl -sS \
-  "$API_URL/api/v1/experiments/$EXPERIMENT_ID/artifacts/experiment.json" \
-  -H "Authorization: Bearer $ACCESS_TOKEN" \
-  -o experiment.json
-
-cat metrics.json
-cat model.txt
-python -m json.tool experiment.json
-```
-
-### 5.8 Volver a ejecutar o eliminar un experimento
-
-Para volver a ejecutar el mismo experimento con el dataset, variable objetivo y
-parámetros almacenados originalmente:
-
-```bash
-curl -sS -X POST   "$API_URL/api/v1/experiments/$EXPERIMENT_ID/rerun"   -H "Authorization: Bearer $ACCESS_TOKEN" | python -m json.tool
-```
-
-La reejecución conserva la configuración inicial, elimina los artefactos de la
-ejecución anterior y genera nuevamente el modelo, métricas y predicciones. Si
-el experimento está activo o no hay una GPU libre, la API responde `409`.
-
-Para eliminar un experimento que no se encuentre activo:
-
-```bash
-curl -i -X DELETE   "$API_URL/api/v1/experiments/$EXPERIMENT_ID"   -H "Authorization: Bearer $ACCESS_TOKEN"
-```
-
-La respuesta correcta es `204 No Content`. También se eliminan el log y los
-artefactos asociados. No se elimina el dataset utilizado.
-
-## 6. Frontend Web
-
-El frontend es una aplicación de una sola página desarrollada con React,
-TypeScript y Vite. Consume exclusivamente la API REST del backend; no importa
-ni ejecuta directamente el motor M5GP. Esta separación permite que la misma
-interfaz Web pueda utilizar un backend instalado en el mismo equipo, en otro
-servidor de la red o en una infraestructura remota con GPUs.
-
-### 6.1 Requisitos previos
-
-Antes de iniciar el frontend deben cumplirse las siguientes condiciones:
-
-1. El backend debe estar instalado y ejecutándose.
-2. La API debe responder en `http://localhost:8000/health`.
-3. El origen del frontend debe estar autorizado por CORS en el backend.
-4. Debe estar disponible Node.js. Se recomienda Node.js 22, que es la versión
-   utilizada por el Dockerfile del proyecto.
-
-Compruebe las versiones instaladas:
-
-```bash
-node --version
-npm --version
-```
-
-Compruebe que la API esté activa:
-
-```bash
-curl -sS http://localhost:8000/health | python -m json.tool
-```
-
-La configuración predeterminada del backend permite solicitudes desde:
-
-```text
-http://localhost:5173
-```
-
-Esta dirección se establece mediante:
-
-```env
-GENLAB_CORS_ORIGINS=http://localhost:5173
-```
-
-Si el frontend se publica en otra dirección, dominio o puerto, debe actualizarse
-`GENLAB_CORS_ORIGINS` en el archivo `.env` de la raíz y reiniciarse el backend.
-
-### 6.2 Configurar la dirección de la API
-
-El cliente utiliza de forma predeterminada:
+El frontend utiliza por defecto:
 
 ```text
 http://localhost:8000/api/v1
 ```
 
-La dirección se obtiene de la variable Vite `VITE_API_URL`. Para declarar una
-dirección explícita, cree el archivo `frontend/.env.local`:
+Para cambiarla, cree `frontend/.env.local`:
 
-```bash
-cat > frontend/.env.local <<'ENV'
+```env
 VITE_API_URL=http://localhost:8000/api/v1
-ENV
 ```
 
-La URL debe incluir el prefijo `/api/v1`, porque el cliente concatena sobre esa
-base rutas como `/auth/login`, `/datasets`, `/experiments` y `/gpus`.
+La dirección **debe incluir `/api/v1`**.
 
-Ejemplo para un backend ubicado en otro equipo de la red:
+Ejemplo para un backend remoto:
 
 ```env
 VITE_API_URL=http://192.168.1.50:8000/api/v1
 ```
 
-En ese caso, el backend también debe permitir el origen desde el cual se abre el
-frontend, por ejemplo:
+El backend deberá autorizar en `GENLAB_CORS_ORIGINS` el origen desde el que se sirve el frontend.
 
-```env
-GENLAB_CORS_ORIGINS=http://192.168.1.50:5173
-```
+### 8.2 Modo de desarrollo
 
-Las variables `VITE_*` se incorporan durante el arranque o compilación de Vite.
-Después de modificar `frontend/.env.local`, debe reiniciarse `npm run dev`.
-
-### 6.3 Instalar y ejecutar en modo de desarrollo
-
-Mantenga el backend ejecutándose en una primera terminal:
+En otra terminal:
 
 ```bash
-cd /ruta/GenLab_M5GP
-
-uvicorn genlab_api.main:app --app-dir backend/src \
-  --host 0.0.0.0 --port 8000 --workers 1
+cd frontend
+npm ci --no-audit --no-fund
+npm run dev -- --host 0.0.0.0
 ```
 
-En una segunda terminal, instale e inicie el frontend:
-
-```bash
-cd /ruta/GenLab_M5GP/frontend
-npm install
-npm run dev
-```
-
-Vite mostrará una salida similar a:
-
-```text
-Local: http://localhost:5173/
-```
-
-Abra esa dirección en el navegador:
+La dirección habitual es:
 
 ```text
 http://localhost:5173
 ```
 
-Para permitir acceso desde otro equipo de la misma red:
+### 8.3 Compilación de producción
 
 ```bash
+cd frontend
+npm ci --no-audit --no-fund
+npm run build
+```
+
+La salida se genera en:
+
+```text
+frontend/dist/
+```
+
+### 8.4 Probar la compilación
+
+```bash
+npm run preview -- --host 0.0.0.0
+```
+
+Vite suele utilizar el puerto `4173`. Si se prueba desde ese origen, agréguelo a CORS:
+
+```env
+GENLAB_CORS_ORIGINS=http://localhost:5173,http://localhost:4173
+```
+
+---
+
+## 9. Arranque completo para desarrollo
+
+### Terminal 1 — backend
+
+Active primero el mismo entorno Conda que contiene CUDA/RAPIDS/cuML y M5GP:
+
+```bash
+cd /ruta/GenLab-m5gp
+conda activate <NOMBRE_ENTORNO>
+
+uvicorn genlab_api.main:app \
+  --app-dir backend/src \
+  --host 0.0.0.0 \
+  --port 8000 \
+  --reload
+```
+
+### Terminal 2 — frontend
+
+El frontend no depende del entorno Conda; utiliza Node.js/npm:
+
+```bash
+cd /ruta/GenLab-m5gp/frontend
 npm run dev -- --host 0.0.0.0
 ```
 
-Después acceda mediante la IP del equipo que ejecuta Vite, por ejemplo:
+Abra:
 
 ```text
-http://192.168.1.50:5173
+http://localhost:5173
 ```
 
-### 6.4 Flujo completo de prueba desde la interfaz Web
+---
 
-#### Paso 1. Registrar un usuario
+## 10. Perfiles de ejecución
 
-Al abrir el frontend aparece la pantalla de autenticación.
+Los perfiles del sistema son configuraciones operativas de conveniencia. No deben interpretarse como configuraciones científicamente óptimas para cualquier dataset.
 
-1. Seleccione **Crear una cuenta**.
-2. Capture nombre, correo electrónico y contraseña.
-3. La contraseña debe contener al menos 10 caracteres, de acuerdo con el
-   formulario actual.
-4. Presione **Registrarme**.
+### 10.1 Regresión simbólica
 
-El frontend realiza primero:
+| Perfil | Método de evaluación | Generaciones | `GenesIndividuals` | `Individuals` | `maxRandomConstant` |
+|---|---:|---:|---:|---:|---:|
+| Mínima | 4 — Ridge | 15 | 64 | 256 | 1 |
+| Estándar | 4 — Ridge | 40 | 64 | 512 | 1 |
+| Intensiva | 4 — Ridge | 128 | 128 | 1024 | 1 |
+
+El perfil **Estándar** es el predeterminado.
+
+Los tres perfiles utilizan:
+
+```json
+[
+  "+", "-", "*", "/",
+  "sin", "cos", "tan", "tanh",
+  "exp", "log", "Abs", "sqrt"
+]
+```
+
+Parámetros evolutivos comunes:
+
+```json
+{
+  "mutationProb": 0.10,
+  "mutationDeleteRateProb": 0.05,
+  "sizeTournament": 0.15,
+  "genOperatorProb": 0.45,
+  "genVariableProb": 0.40,
+  "genConstantProb": 0.10,
+  "genNoopProb": 0.001,
+  "log": 1,
+  "verbose": 1
+}
+```
+
+### 10.2 Clasificación
+
+Se conserva un perfil **Clasificación estándar** independiente. Los tres perfiles anteriores usan Ridge y, por tanto, son perfiles de regresión.
+
+### 10.3 Parámetros personalizados
+
+La opción **Parámetros** permite:
+
+- revisar perfiles del sistema;
+- copiar un perfil;
+- construir una configuración desde un formulario;
+- generar automáticamente el JSON solicitado por M5GP;
+- editar el JSON manualmente;
+- guardar predefinidos personalizados;
+- definir un predefinido como predeterminado.
+
+---
+
+## 11. Validación Train/Test
+
+GenLab realiza la partición externa del dataset antes de llamar a M5GP.
+
+### 11.1 Holdout
+
+Valores predeterminados:
 
 ```text
-POST /api/v1/auth/register
+strategy     = holdout
+train_size   = 0.75
+test_size    = 0.25
+random_state = 42
+shuffle      = true
 ```
 
-Después inicia sesión automáticamente mediante:
+El worker construye `X_train`, `X_test`, `y_train` y `y_test`. M5GP recibe en `fit()` solamente el conjunto de entrenamiento y se evalúa posteriormente sobre Train y Test.
+
+Cuando existen varias repeticiones, la semilla se deriva de la semilla base y del índice de repetición, permitiendo particiones diferentes pero reproducibles.
+
+### 11.2 K-fold
+
+En regresión se utiliza `KFold` y en clasificación `StratifiedKFold`.
+
+Cada fold se materializa como una corrida independiente. Por ejemplo:
 
 ```text
-POST /api/v1/auth/login
-GET  /api/v1/auth/me
+10 repeticiones × 5 folds = 50 entrenamientos de M5GP
 ```
 
-También puede utilizar un usuario creado previamente desde la API y seleccionar
-**Iniciar sesión**.
+`folds` sólo tiene efecto cuando `strategy = kfold`. En Holdout puede existir en la configuración almacenada como valor disponible, pero no participa en la división de esa corrida.
 
-#### Paso 2. Verificar el panel principal
+---
 
-Después de autenticarse se muestra **Overview**, con los siguientes indicadores:
+## 12. Administración de GPUs y cola
 
-- número de datasets del usuario;
-- número de experimentos;
-- GPUs disponibles respecto al total detectado;
-- ejecuciones activas;
-- tabla de experimentos recientes.
+GenLab detecta GPUs mediante `nvidia-smi`. Si `GENLAB_GPU_COUNT` está definido, utiliza ese número lógico en lugar de consultar el hardware.
 
-El panel consulta periódicamente:
+La política actual es:
 
 ```text
-GET /api/v1/datasets
-GET /api/v1/experiments
-GET /api/v1/gpus
+1 corrida activa por GPU
 ```
 
-La información se actualiza aproximadamente cada cuatro segundos.
+Las corridas generadas por experimentos agrupados y lotes entran a una cola con estado `queued`. Cuando una corrida finaliza o falla, su GPU se libera y el backend intenta despachar la siguiente corrida pendiente.
 
-#### Paso 3. Cargar un dataset
+La API histórica `/experiments/{id}/run` se conserva por compatibilidad y puede seguir respondiendo `409` cuando se solicita una ejecución directa sin GPU disponible. El flujo nuevo de experimentos agrupados utiliza la cola.
 
-Abra **Datasets** desde la barra lateral.
+---
 
-1. Escriba un nombre descriptivo.
-2. Seleccione un archivo CSV o TSV.
-3. Presione **Cargar dataset**.
+## 13. Seguimiento de avance
 
-El frontend envía un formulario `multipart/form-data` a:
+Cada corrida mantiene información de progreso:
+
+- etapa actual;
+- porcentaje;
+- generación actual;
+- generaciones totales;
+- historial de ajuste por generación;
+- mensaje descriptivo.
+
+Durante `model.fit()` el backend lee el avance generacional del log de M5GP y actualiza la corrida. La interfaz consulta periódicamente esta información y muestra:
+
+- avance global del experimento;
+- progreso de cada corrida;
+- porcentaje;
+- generación actual/total;
+- estado de la corrida.
+
+El porcentaje representa avance del flujo y de generaciones; **no es una estimación lineal del tiempo restante**.
+
+---
+
+## 14. Resultados de regresión
+
+Para cada corrida de regresión se registran por separado métricas de Train y Test:
 
 ```text
-POST /api/v1/datasets
+MSE
+RMSE
+MAE
+R²
 ```
 
-Para una prueba mínima puede crear el siguiente archivo:
-
-```bash
-cat > /tmp/genlab_frontend_demo.csv <<'CSV'
-x1,x2,target
-1.0,2.0,5.0
-2.0,1.0,5.0
-3.0,4.0,11.0
-4.0,3.0,11.0
-5.0,6.0,17.0
-6.0,5.0,17.0
-7.0,8.0,23.0
-8.0,7.0,23.0
-CSV
-```
-
-Seleccione `/tmp/genlab_frontend_demo.csv` en el formulario. También puede seleccionar un archivo `.tsv` separado por tabuladores. Cuando la carga
-termine, el dataset debe aparecer en la tabla con:
-
-- nombre asignado;
-- nombre del archivo original;
-- número de filas y columnas;
-- fecha de creación.
-
-#### Paso 4. Revisar los recursos GPU
-
-Abra **GPU Resources**.
-
-La pantalla muestra una tarjeta por GPU con:
-
-- identificador lógico;
-- nombre del dispositivo;
-- estado `available` o `busy`;
-- memoria total, cuando puede obtenerse.
-
-Esta vista consulta:
+También se almacenan métricas de ejecución:
 
 ```text
-GET /api/v1/gpus
+Model Size
+Training Time (s)
+Process Time (s)
 ```
 
-Si no se detectan GPUs, la interfaz mostrará el mensaje correspondiente. En esa
-situación pueden probarse autenticación, sesiones, datasets y navegación, pero
-la ejecución de M5GP no podrá completarse porque el núcleo original requiere
-CUDA, RAPIDS y cuML.
+`Training Time` corresponde al tiempo de pared medido alrededor de `model.fit()`. `Model Size` se obtiene de la complejidad reportada por el modelo M5GP.
 
-#### Paso 5. Crear un experimento
+### 14.1 Resultados agregados
 
-Abra **Experiments** y presione **Nuevo experimento**.
-
-Complete el formulario:
-
-- **Nombre:** nombre identificador de la ejecución.
-- **Dataset:** archivo cargado previamente.
-- **Objetivo:** columna que se desea predecir.
-- **Tarea:** regresión simbólica o clasificación.
-- **generations:** número de generaciones.
-- **Individuals:** tamaño de la población.
-- **GenesIndividuals:** genes por individuo.
-- **mutationProb:** probabilidad de mutación.
-- **mutationDeleteRateProb:** probabilidad de eliminación durante UMAD.
-- **sizeTournament:** proporción utilizada para el torneo.
-- **evaluationMethod:** método de regresión o clasificador definido por M5GP.
-- **scorer:** métrica utilizada durante la evaluación.
-- Para clasificación: **crossVal**, **k**, **averageMode** y **CrossAverage**.
-
-Al seleccionar **Regresión simbólica**, el formulario muestra los once métodos
-originales (`evaluationMethod` de 0 a 10), incluyendo RMSE/R² directos, Linear,
-Lasso, Ridge, Kernel Ridge, ElasticNet y las cuatro variantes MiniBatch. Cada
-opción muestra una descripción breve y el valor numérico que se enviará a la
-API. Al seleccionar **Clasificación**, muestra Logistic
-Regression, SVC, Random Forest y KNN, además de las opciones de validación
-cruzada y promedio de métricas. El cambio de tarea restablece valores válidos
-para evitar mezclar parámetros de regresión con parámetros del clasificador.
-
-Para una prueba rápida de integración de regresión puede utilizar:
+Para cada métrica se calculan:
 
 ```text
-generations = 2
-Individuals = 64
-GenesIndividuals = 32
-mutationProb = 0.10
-mutationDeleteRateProb = 0.05
-sizeTournament = 0.15
-evaluationMethod = 4
+media
+desviación estándar poblacional
+mínimo
+máximo
+número de corridas válidas
 ```
 
-Estos valores reducen la duración de la prueba, pero no constituyen una
-configuración recomendada para experimentos científicos finales.
+Se muestran tanto a nivel global del experimento como por dataset.
 
-Al presionar **Crear y ejecutar**, el frontend realiza dos operaciones:
+### 14.2 Resultados individuales
+
+En cada dataset puede abrirse el detalle de cada corrida. El resultado individual conserva:
+
+- dataset;
+- repetición y fold;
+- semilla;
+- estado y progreso;
+- métricas Train/Test;
+- Model Size;
+- Training Time;
+- modelo simbólico;
+- historial por generación;
+- predicciones;
+- artefactos y log.
+
+### 14.3 Gráficas tipo SRBench
+
+Los experimentos de regresión muestran gráficas comparativas para:
 
 ```text
-POST /api/v1/experiments
-POST /api/v1/experiments/{experiment_id}/run
+R² Test
+RMSE Test
+Model Size
+Training Time (s)
 ```
 
-Después abre automáticamente la página de detalle del experimento.
+Para cada dataset se representan las corridas individuales junto con su resumen. `Model Size` y `Training Time` utilizan escala logarítmica cuando corresponde.
 
-#### Paso 6. Monitorear la ejecución
+También se incluye una nube de puntos observado contra predicho con línea `y = x`. La correlación de Pearson se calcula utilizando todos los puntos válidos; el muestreo se aplica únicamente a la cantidad de puntos enviados a la visualización cuando el experimento es grande.
 
-La pantalla de detalle consulta el experimento aproximadamente cada tres
-segundos:
+---
+
+## 15. Resultados de clasificación
+
+Las métricas principales Train/Test son:
 
 ```text
-GET /api/v1/experiments/{experiment_id}
+Accuracy
+F1 macro
+Precision macro
+Recall macro
 ```
 
-Muestra:
-
-- estado de la ejecución;
-- GPU asignada;
-- porcentaje y barra de progreso;
-- generación actual y total de generaciones;
-- parámetros iniciales utilizados para crear el experimento;
-- dataset, variable objetivo y tipo de tarea;
-- complejidad del modelo;
-- métricas finales, diferenciadas entre regresión y clasificación;
-- expresión simbólica;
-- mensaje de error, si la ejecución falla.
-
-En experimentos de regresión aparecen dos gráficas:
-
-1. **Evolución del ajuste por generación**, construida con el valor `Train Fit`
-   que el ciclo original de M5GP imprime al terminar cada generación.
-2. **Comparación de resultados de prueba**, que superpone los valores reales y
-   las predicciones del conjunto de prueba. Para datasets grandes, la API
-   entrega una muestra uniforme de hasta 300 observaciones exclusivamente para
-   visualización; el archivo `predictions.csv` conserva todos los resultados.
-
-La información gráfica se consulta mediante:
+También se generan, cuando corresponde:
 
 ```text
-GET /api/v1/experiments/{experiment_id}/visualization
+classification_report.json
+confusion_matrix.json
 ```
 
-La gráfica no modifica ni intercepta el ciclo evolutivo: el backend lee el log
-y los artefactos generados después de ejecutar `fit()` y `predict()`.
+---
 
-El porcentaje no es una estimación de tiempo. Se determina por el avance del
-flujo real del worker:
+## 16. Exportación de resultados
+
+Desde la vista de un experimento pueden exportarse:
+
+- todos los resultados del experimento;
+- los resultados de un dataset específico.
+
+Formatos:
 
 ```text
-1%       GPU reservada
-3%       carga del dataset
-5%       preparación de datos y estimador
-8%       inicialización de población y evaluación inicial
-8%-90%   generaciones del ciclo evolutivo
-92%      evaluación sobre datos de prueba
-97%      guardado de artefactos
-100%     ejecución finalizada
+JSON
+Excel .xlsx
 ```
 
-Durante el ciclo evolutivo, el backend lee del log las líneas que el
-`m5gp.py` original imprime con el formato `Generation: n`. El cálculo es:
+Endpoints:
 
 ```text
-porcentaje = 8 + redondear(82 × generación_actual / generaciones_totales)
+GET /api/v1/experiment-groups/{id}/export/json
+GET /api/v1/experiment-groups/{id}/export/xlsx
 ```
 
-El resultado se limita a 90% durante entrenamiento. Cada generación puede
-tardar un tiempo distinto, por lo que 50% de avance no implica necesariamente
-50% del tiempo total. Este seguimiento no modifica `m5gp.py`,
-`compute_individuals` ni los demás métodos del ciclo evolutivo.
-
-Los estados que pueden observarse dependen del backend, pero normalmente el
-flujo pasa por creación, reserva de GPU, ejecución y finalización. Si todas las
-GPUs están ocupadas, el backend rechaza el inicio con HTTP `409`.
-
-#### Paso 7. Consultar configuración, reejecutar o eliminar
-
-En la página de detalle se muestra la sección **Parámetros iniciales**, con el
-dataset, columna objetivo, tipo de tarea y los valores almacenados en
-`parameters`.
-
-El botón **Volver a ejecutar** utiliza:
+Para limitar la exportación a un dataset:
 
 ```text
-POST /api/v1/experiments/{experiment_id}/rerun
+?dataset_id=<dataset-id>
 ```
 
-La reejecución conserva la configuración y reemplaza los resultados anteriores.
-El botón **Eliminar** utiliza:
+El libro `.xlsx` contiene las hojas:
 
 ```text
-DELETE /api/v1/experiments/{experiment_id}
+Experimento
+Resultados agregados
+Corridas
 ```
 
-Por seguridad, ambos botones se deshabilitan mientras el experimento está en
-estado `reserved`, `running` o `cancelling`. La eliminación también está
-disponible desde la tabla del historial.
+La exportación Excel se genera directamente como OpenXML y no requiere instalar una biblioteca adicional de Excel en el backend.
 
-#### Paso 8. Descargar artefactos
+---
 
-Cuando el experimento termina, la sección **Artefactos** permite solicitar:
+
+## 17. Comparativos y reportes de experimentos
+
+La opción **Comparativos** permite integrar resultados de dos o más experimentos del mismo tipo sin modificar las corridas ni los artefactos originales. Un reporte puede contener únicamente experimentos de **regresión** o únicamente experimentos de **clasificación**.
+
+Cada reporte guarda una **instantánea del análisis** junto con los identificadores de los experimentos utilizados, la métrica principal y el nivel de significancia `α`. Esto permite consultar posteriormente el mismo resultado. Si terminan nuevas corridas o cambian los resultados de un experimento, el botón **Actualizar análisis** vuelve a calcular explícitamente la instantánea; el reporte no cambia de forma silenciosa.
+
+### 17.1 Selección de experimentos
+
+Desde `/comparisons` se selecciona:
+
+- tipo de tarea: regresión o clasificación;
+- dos o más experimentos del mismo tipo;
+- métrica principal;
+- nivel `α`, por defecto `0.05`;
+- nombre y descripción del reporte.
+
+Los experimentos pueden utilizar configuraciones diferentes. Esto permite estudiar el efecto de parámetros como:
+
+```text
+generations
+Individuals
+GenesIndividuals
+mutationProb
+mutationDeleteRateProb
+sizeTournament
+genOperatorProb
+genVariableProb
+genConstantProb
+genNoopProb
+maxRandomConstant
+evaluationMethod
+validation.train_size
+validation.test_size
+runs_per_dataset
+```
+
+El reporte identifica automáticamente los parámetros que realmente cambian entre los experimentos seleccionados.
+
+### 17.2 Métricas disponibles
+
+Para regresión pueden utilizarse como métrica principal:
+
+```text
+R² Test
+RMSE Test
+MAE Test
+Model Size
+Training Time
+```
+
+Para clasificación:
+
+```text
+Accuracy Test
+F1 macro Test
+Precision macro Test
+Recall macro Test
+Model Size
+Training Time
+```
+
+### 17.3 Visualizaciones tipo SRBench
+
+El comparativo genera gráficas de resumen por experimento/configuración. En regresión se muestran de forma predeterminada:
+
+```text
+R² Test
+RMSE Test
+Model Size
+Training Time (s)
+```
+
+En clasificación:
+
+```text
+Accuracy Test
+F1 macro Test
+Model Size
+Training Time (s)
+```
+
+Cuando los experimentos comparten datasets, los rankings y gráficas de desempeño utilizan únicamente ese conjunto común para evitar comparar configuraciones sobre problemas distintos. Cada gráfica conserva los valores de las corridas individuales y muestra media y rango mínimo–máximo. `Model Size` y `Training Time` se representan en escala logarítmica cuando corresponde.
+
+El reporte agrega además un **boxplot** de la métrica principal para visualizar mediana, cuartiles, dispersión y extremos entre corridas.
+
+> Cuando se comparan RMSE o MAE de datasets con escalas objetivo diferentes, la comparación global debe interpretarse con precaución. En ese caso conviene analizar los resultados por dataset o normalizar previamente la métrica.
+
+### 17.4 Matriz de Wilcoxon
+
+GenLab puede generar una matriz triangular similar a la utilizada en análisis de benchmarks. Para cada par de experimentos se aplica la prueba de **Wilcoxon de rangos con signo** sobre las medias obtenidas en los **datasets comunes**.
+
+El procedimiento es:
+
+1. para cada experimento se calcula la media de la métrica seleccionada en cada dataset;
+2. se conservan únicamente datasets presentes en ambos experimentos del par;
+3. se ejecuta Wilcoxon pareado y bilateral;
+4. los p-valores de todos los pares se corrigen mediante **Holm-Bonferroni**;
+5. la matriz clasifica la evidencia utilizando `p_adj` respecto a `α`:
+
+```text
+p_adj < 10^-3 · α
+p_adj < 10^-2 · α
+p_adj < 10^-1 · α
+p_adj < α
+no significativo
+```
+
+La matriz informa además el número de datasets emparejados y cuál experimento presenta mejor media considerando la dirección de la métrica. Si existen menos de cinco datasets comunes, el contraste se marca como **exploratorio**. El resultado estadístico no debe interpretarse aisladamente de magnitud del efecto, dispersión y diseño experimental.
+
+### 17.5 Impacto de parámetros
+
+Para parámetros numéricos que cambian entre los experimentos, la interfaz permite seleccionar un parámetro y una métrica y genera un diagrama de dispersión configuración–resultado. También calcula la correlación de **Spearman (`ρ`)** y su p-valor cuando existen al menos tres configuraciones válidas.
+
+Esta sección ayuda a explorar asociaciones como:
+
+```text
+generations        vs R² Test
+Individuals        vs RMSE Test
+GenesIndividuals   vs Model Size
+Individuals        vs Training Time
+```
+
+La correlación se presenta como herramienta exploratoria; no implica una relación causal entre el parámetro y el resultado.
+
+### 17.6 Análisis de costo computacional
+
+El reporte incluye un diagrama costo–desempeño con la métrica principal frente a `Training Time` y tres gráficas de escalamiento similares a las utilizadas en SRBench:
+
+```text
+Training Time vs Dataset Nsamples
+Training Time vs Dataset Nfeatures
+Training Time vs Dataset Npoints
+```
+
+donde:
+
+```text
+Nsamples  = número de filas del dataset
+Nfeatures = número de variables predictoras
+Npoints   = Nsamples × Nfeatures
+```
+
+Los ejes de tamaño y tiempo se representan en escala logarítmica. Para cada punto se conserva media, desviación estándar y rango de tiempos de las corridas disponibles.
+
+### 17.7 Guardar, actualizar y exportar
+
+Los reportes se almacenan en la tabla `comparison_reports`. Al iniciar FastAPI, `Base.metadata.create_all()` crea esta tabla cuando aún no existe. Como en cualquier actualización de esquema, se recomienda respaldar previamente la base de datos y `data/`.
+
+Rutas API:
+
+```text
+POST   /api/v1/comparison-reports/preview
+POST   /api/v1/comparison-reports
+GET    /api/v1/comparison-reports
+GET    /api/v1/comparison-reports/{id}
+POST   /api/v1/comparison-reports/{id}/refresh
+GET    /api/v1/comparison-reports/{id}/export/json
+GET    /api/v1/comparison-reports/{id}/export/xlsx
+DELETE /api/v1/comparison-reports/{id}
+```
+
+La exportación Excel contiene hojas para:
+
+```text
+Reporte
+Experimentos
+Rankings
+Datasets
+Wilcoxon
+Parametros
+Computacional
+```
+
+Los reportes guardan una instantánea de resultados. Si posteriormente se elimina uno de los experimentos originales, la instantánea guardada continúa disponible, aunque no podrá recalcularse hasta que todos los experimentos referenciados vuelvan a existir.
+
+---
+
+## 18. Artefactos de cada corrida
+
+Una corrida completada puede generar:
 
 ```text
 model.joblib
@@ -783,498 +1028,379 @@ test_results.json
 experiment.json
 ```
 
-Para clasificación también se generan:
+En clasificación también:
 
 ```text
 classification_report.json
 confusion_matrix.json
 ```
 
-El frontend descarga cada archivo utilizando el JWT del usuario:
+`metrics.json` contiene métricas Train/Test, validación y métricas de ejecución. `experiment.json` conserva la información necesaria para identificar la configuración efectiva de la corrida.
+
+Las corridas históricas creadas antes de incorporar `Model Size` y `Training Time` como métricas estructuradas pueden mostrar esos campos vacíos. Para obtenerlos de forma homogénea deben volver a ejecutarse con la versión actual.
+
+---
+
+## 19. API principal
+
+### Compatibilidad histórica de ejecuciones
 
 ```text
-GET /api/v1/experiments/{experiment_id}/artifacts/{filename}
+/api/v1/experiments
 ```
 
-La disponibilidad de cada artefacto depende de que la ejecución haya concluido
-y de que el worker lo haya generado correctamente.
-
-El botón **Resultados completos JSON** descarga `experiment.json`. Para un
-experimento de regresión, el documento incluye:
-
-- nombre del dataset y algoritmo;
-- parámetros efectivos del estimador;
-- semilla aleatoria;
-- tiempo de proceso y tiempo de pared del entrenamiento;
-- niveles de ruido de objetivo y características;
-- tamaño y expresión simbólica del modelo;
-- MSE, MAE y R² para entrenamiento y prueba.
-
-Para clasificación se mantienen los mismos campos generales y se agregan
-`accuracy_train`, `f1_macro_train`, `precision_macro_train`,
-`recall_macro_train`, `accuracy_test`, `f1_macro_test`,
-`precision_macro_test` y `recall_macro_test`. Los campos de regresión permanecen
-con valor `null` para conservar un esquema estable. Además:
-
-- `metrics.json` contiene secciones `train` y `test` apropiadas para la tarea;
-- `classification_report.json` contiene el reporte por clase;
-- `confusion_matrix.json` contiene clases y matriz de confusión;
-- `generation_history.json` conserva el historial de `Train Fit`;
-- `test_results.json` conserva valores reales y predicciones para las gráficas.
-
-### 6.5 Cómo funcionan las sesiones
-
-El frontend almacena temporalmente los tokens en el navegador con la clave:
+### Corridas
 
 ```text
-genlab_tokens
+GET    /api/v1/runs
+GET    /api/v1/runs/{id}
+POST   /api/v1/runs/{id}/rerun
+POST   /api/v1/runs/{id}/cancel
+DELETE /api/v1/runs/{id}
+GET    /api/v1/runs/{id}/generation-history
+GET    /api/v1/runs/{id}/test-results
+GET    /api/v1/runs/{id}/artifacts/{filename}
 ```
 
-El valor se guarda en `localStorage` e incluye:
-
-- `access_token`;
-- `refresh_token`.
-
-En cada solicitud protegida se envía:
-
-```http
-Authorization: Bearer <access_token>
-```
-
-Cuando la API responde `401`, el cliente intenta renovar la sesión mediante:
+### Experimentos agrupados
 
 ```text
-POST /api/v1/auth/refresh
+POST   /api/v1/experiment-groups
+GET    /api/v1/experiment-groups
+GET    /api/v1/experiment-groups/{id}
+POST   /api/v1/experiment-groups/{id}/run
+POST   /api/v1/experiment-groups/{id}/dispatch
+GET    /api/v1/experiment-groups/{id}/results
+GET    /api/v1/experiment-groups/{id}/export/json
+GET    /api/v1/experiment-groups/{id}/export/xlsx
+DELETE /api/v1/experiment-groups/{id}
 ```
 
-Si la renovación falla, elimina los tokens y vuelve a mostrar la pantalla de
-inicio de sesión. Al cerrar sesión se invoca `/auth/logout` y se limpia el
-almacenamiento local.
+### Predefinidos
 
-Para borrar manualmente una sesión durante pruebas, abra las herramientas de
-desarrollo del navegador y ejecute en la consola:
-
-```javascript
-localStorage.removeItem('genlab_tokens')
-location.reload()
+```text
+GET    /api/v1/parameter-presets
+POST   /api/v1/parameter-presets
+PUT    /api/v1/parameter-presets/{id}
+DELETE /api/v1/parameter-presets/{id}
 ```
 
-### 6.6 Verificar las solicitudes desde el navegador
+### Lotes
 
-Para revisar la comunicación frontend-backend:
+```text
+POST /api/v1/batches
+GET  /api/v1/batches
+GET  /api/v1/batches/{id}
+POST /api/v1/batches/{id}/run
+```
 
-1. Abra las herramientas de desarrollo del navegador.
-2. Seleccione la pestaña **Network** o **Red**.
-3. Filtre por `fetch` o `XHR`.
-4. Ejecute una operación, por ejemplo iniciar sesión o cargar un dataset.
-5. Compruebe la URL, método HTTP, código de respuesta y cuerpo JSON.
+### Comparativos y reportes
 
-Las solicitudes protegidas deben contener el encabezado `Authorization`. Una
-respuesta `401` suele indicar token ausente, vencido o inválido. Una respuesta
-`403` indica que el usuario no tiene acceso al recurso. Una respuesta `409` al
-iniciar un experimento normalmente indica que no existe una GPU libre.
+```text
+POST   /api/v1/comparison-reports/preview
+POST   /api/v1/comparison-reports
+GET    /api/v1/comparison-reports
+GET    /api/v1/comparison-reports/{id}
+POST   /api/v1/comparison-reports/{id}/refresh
+GET    /api/v1/comparison-reports/{id}/export/json
+GET    /api/v1/comparison-reports/{id}/export/xlsx
+DELETE /api/v1/comparison-reports/{id}
+```
 
-### 6.7 Compilar y probar la versión de producción
+La especificación completa y actual del servidor siempre puede consultarse en:
 
-Antes de desplegar el frontend, verifique que TypeScript y Vite compilen:
+```text
+http://localhost:8000/docs
+```
+
+---
+
+## 20. Rutas principales del frontend
+
+```text
+/                       Panel principal
+/datasets               Datasets
+/experiments            Experimentos
+/experiments/new        Nuevo experimento
+/experiments/{id}       Resultados agregados e individuales
+/runs                   Corridas
+/runs/{id}              Detalle de corrida
+/batches                Lotes
+/parameters             Perfiles y parámetros avanzados
+/comparisons             Comparativos y reportes
+/comparisons/{id}        Detalle de un comparativo guardado
+/resources              Recursos GPU
+/about                  Información del proyecto
+```
+
+---
+
+## 21. Flujo de uso recomendado
+
+1. Registrar o iniciar sesión con un usuario.
+2. Cargar uno o varios datasets CSV/TSV.
+3. Revisar su vista previa y seleccionar la variable objetivo.
+4. Crear un experimento.
+5. Seleccionar regresión o clasificación.
+6. Seleccionar un perfil o construir una configuración personalizada.
+7. Seleccionar uno o varios datasets.
+8. Definir el número de corridas por dataset.
+9. Configurar Holdout o K-fold.
+10. Guardar o ejecutar el experimento.
+11. Supervisar el avance global y el progreso de cada corrida.
+12. Revisar resultados agregados por dataset.
+13. Abrir las corridas individuales cuando se requiera trazabilidad.
+14. Exportar resultados a JSON o `.xlsx`.
+15. Abrir **Comparativos** para seleccionar experimentos del mismo tipo, analizar diferencias de parámetros, revisar Wilcoxon y estudiar costo computacional.
+16. Guardar y exportar el reporte comparativo cuando se requiera conservar el análisis.
+17. Utilizar Lotes cuando deban ejecutarse varios experimentos guardados.
+
+---
+
+## 22. Verificación y pruebas
+
+### 22.1 Verificar estructura
+
+Después de instalar el código M5GP:
+
+```bash
+python tools/verify_structure.py --require-source
+```
+
+Sin exigir que el motor ya esté instalado:
+
+```bash
+python tools/verify_structure.py
+```
+
+### 22.2 Comprobar sintaxis Python
+
+```bash
+python -m compileall -q backend/src core/src
+```
+
+### 22.3 Pruebas del backend
+
+```bash
+python -m pip install -e 'backend[test]'
+pytest -q backend/tests
+```
+
+Para ejecutar únicamente las pruebas asociadas con experimentos agrupados y resultados:
+
+```bash
+pytest -q \
+  backend/tests/test_experiment_groups.py \
+  backend/tests/test_results_exports.py \
+  backend/tests/test_comparison_reports.py
+```
+
+### 22.4 Compilar el frontend
 
 ```bash
 cd frontend
-npm install
+npm ci --no-audit --no-fund
 npm run build
 ```
 
-El resultado se genera en:
+### 22.5 Prueba directa del motor M5GP
 
-```text
-frontend/dist/
-```
-
-Para probar localmente esa compilación:
+Si se instalaron los tests originales:
 
 ```bash
-npm run preview -- --host 0.0.0.0
+cd core/tests
+python m5gp_Test.py
 ```
 
-Vite mostrará el puerto utilizado, normalmente:
+Esta prueba requiere el entorno GPU/CUDA/RAPIDS/cuML compatible con M5GP.
 
-```text
-http://localhost:4173
+---
+
+## 23. Docker Compose
+
+Antes de construir las imágenes, el Dockerfile del backend exige que el código fuente original de M5GP esté instalado localmente:
+
+```bash
+python tools/install_core_from_github.py --ref main
 ```
 
-Si utiliza el puerto `4173`, debe añadirlo a CORS durante la prueba:
-
-```env
-GENLAB_CORS_ORIGINS=http://localhost:4173
-```
-
-Después reinicie el backend.
-
-### 6.8 Ejecución mediante Docker Compose
-
-Desde la raíz del proyecto:
+Después:
 
 ```bash
 docker compose up --build
 ```
 
-La configuración incluida inicia:
+La configuración actual levanta:
 
 - PostgreSQL;
 - API en `http://localhost:8000`;
-- frontend servido por Nginx en `http://localhost:5173`.
+- frontend Nginx en `http://localhost:5173`.
+
+### Consideración importante sobre GPU
+
+El `backend/Dockerfile` incluido parte de `python:3.12-slim` e instala los paquetes Python de `core` y `backend`, pero **no instala por sí mismo un entorno completo CUDA/RAPIDS/cuML**. Por tanto, `docker compose up --build` no debe interpretarse como una imagen GPU final lista para ejecutar M5GP en cualquier equipo.
+
+Para ejecutar M5GP dentro del contenedor se requiere:
+
+- NVIDIA Container Toolkit en el host;
+- acceso de Docker a las GPUs;
+- una imagen/backend que incluya las versiones compatibles de CUDA, RAPIDS/cuML y demás dependencias requeridas por M5GP.
+
+La sección `deploy.resources.reservations.devices` del Compose solicita GPUs, pero la disponibilidad del dispositivo no sustituye la instalación del entorno de software GPU.
+
+También deben cambiarse las credenciales de PostgreSQL y `GENLAB_SECRET_KEY` incluidas como valores de desarrollo en `docker-compose.yml` antes de un despliegue real.
+
+---
+
+## 24. Integración con SRBench
+
+Para instalar M5GP en una copia de SRBench:
+
+```bash
+bash integrations/srbench/install.sh /ruta/srbench --ref main
+```
+
+Para fijar una versión reproducible:
+
+```bash
+bash integrations/srbench/install.sh /ruta/srbench --ref <tag-o-commit>
+```
+
+El instalador crea el adaptador y copia el código M5GP requerido dentro de la estructura esperada por SRBench. No modifica el motor utilizado por la instalación principal de GenLab.
+
+---
+
+## 25. Actualizar una instalación existente
+
+Antes de actualizar:
+
+1. detener backend y frontend;
+2. respaldar la base y los directorios `data/`;
+3. conservar el commit/tag de M5GP usado en experimentos que deban reproducirse.
+
+Después de actualizar el código de GenLab, active primero el entorno Conda utilizado por M5GP:
+
+```bash
+conda activate <NOMBRE_ENTORNO>
+git pull
+python tools/install_core_from_github.py --ref main --copy-tests
+python -m pip install -e core
+python -m pip install -e 'backend[test]'
+python -m compileall -q backend/src
+python tools/verify_structure.py --require-source
+pytest -q backend/tests
+```
+
+Frontend:
+
+```bash
+cd frontend
+rm -rf dist node_modules/.vite
+npm ci --no-audit --no-fund
+npm run build
+```
+
+Después reinicie ambos servicios.
+
+Si la actualización se distribuye como paquete incremental con `apply_update.py`, utilice las instrucciones incluidas con ese paquete antes de ejecutar los pasos de verificación anteriores.
+
+---
+
+## 26. Problemas frecuentes
+
+### `source .venv/bin/activate` indica que el archivo no existe
+
+La instalación recomendada actual utiliza el entorno Conda que ya contiene CUDA, RAPIDS/cuML y M5GP. No es necesario crear `.venv`.
+
+Active el entorno correcto:
+
+```bash
+conda env list
+conda activate <NOMBRE_ENTORNO>
+which python
+```
+
+Si existe un `.venv` activo de una prueba anterior, salga de él antes de activar Conda:
+
+```bash
+deactivate
+conda activate <NOMBRE_ENTORNO>
+```
+
+### El backend utiliza un Python distinto al de Conda
 
 Compruebe:
 
 ```bash
-curl -sS http://localhost:8000/health | python -m json.tool
+which python
+python --version
+which uvicorn
 ```
 
-Y abra:
-
-```text
-http://localhost:5173
-```
-
-Para que los contenedores ejecuten M5GP se requiere Docker con soporte NVIDIA y
-acceso a las GPUs del host. La imagen del backend también debe disponer del
-entorno CUDA/RAPIDS/cuML compatible con el motor instalado.
-
-### 6.9 Rutas principales de la interfaz
-
-```text
-/                       Overview
-/datasets               Gestión de datasets
-/experiments            Historial de experimentos
-/experiments/new        Creación de experimento
-/experiments/{id}       Detalle, métricas y artefactos
-/resources              Estado de GPUs
-```
-
-Las rutas requieren una sesión válida. Cuando no existe un usuario autenticado,
-la aplicación muestra la pantalla de login y registro.
-
-### 6.10 Problemas frecuentes
-
-#### El navegador muestra `Failed to fetch` o `NetworkError`
-
-Compruebe que:
+Los ejecutables deben pertenecer al entorno Conda activo. Si `uvicorn` no está instalado en ese entorno, reinstale el backend con:
 
 ```bash
-curl -sS http://localhost:8000/health
+python -m pip install -e 'backend[test]'
 ```
 
-responda correctamente y que `VITE_API_URL` apunte a la dirección real de la
-API.
+### La API no inicia
 
-#### Error de CORS
+Compruebe:
 
-Ajuste en `.env`:
-
-```env
-GENLAB_CORS_ORIGINS=http://localhost:5173
+```bash
+python -m compileall -q backend/src
+python tools/verify_structure.py
 ```
 
-Reinicie el backend después del cambio.
+Revise también que `.env` tenga una URL de base de datos válida y que el entorno virtual correcto esté activo.
 
-#### El login devuelve `401`
+### M5GP no inicia o aparecen errores de `cupy`, `numba`, `cuml` o CUDA
 
-Verifique correo y contraseña. Para reiniciar la sesión del navegador:
-
-```javascript
-localStorage.removeItem('genlab_tokens')
-location.reload()
-```
-
-#### No aparecen GPUs
-
-Compruebe en el host:
+La instalación editable de `core` no instala automáticamente el stack GPU completo. Compruebe primero:
 
 ```bash
 nvidia-smi
 ```
 
-También confirme que el proceso del backend tenga acceso a los dispositivos
-NVIDIA y que se encuentre activo el entorno CUDA/RAPIDS/cuML.
+Después verifique que el entorno Python utilizado por el backend tenga instaladas las dependencias GPU compatibles con M5GP.
 
-#### El experimento devuelve `409`
+### No aparecen GPUs en GenLab
 
-Todas las GPUs se encuentran ocupadas. La primera versión de GenLab M5GP no
-mantiene una cola de trabajos; debe esperar a que se libere un dispositivo y
-volver a iniciar el experimento.
+Compruebe que `nvidia-smi` funcione desde el mismo usuario que ejecuta el backend.
 
-#### Al seleccionar un TSV aparece «Solo se admiten archivos CSV»
+Para una prueba controlada puede establecer explícitamente:
 
-Ese texto corresponde a una versión anterior de la aplicación. La versión
-actual valida explícitamente las extensiones `.csv` y `.tsv` y muestra:
-
-```text
-Solo se admiten archivos CSV o TSV
+```env
+GENLAB_GPU_COUNT=1
 ```
 
-Si ejecuta el frontend con Vite, detenga los procesos anteriores y vuelva a
-iniciar backend y frontend:
+Esto fuerza el inventario lógico, pero **no crea una GPU ni instala CUDA**; M5GP seguirá necesitando acceso real al dispositivo.
+
+### `Failed to fetch` o error CORS
+
+Compruebe:
 
 ```bash
-# Terminal 1
-cd /home/acardenasf/GenLab_M5GP_clean
-source .venv/bin/activate
-uvicorn genlab_api.main:app --app-dir backend/src --host 0.0.0.0 --port 8000 --reload
-
-# Terminal 2
-cd /home/acardenasf/GenLab_M5GP_clean/frontend
-npm ci
-npm run dev -- --host 0.0.0.0
+curl -sS http://localhost:8000/health
 ```
 
-Después realice una recarga forzada del navegador:
+Revise `frontend/.env.local` y `GENLAB_CORS_ORIGINS`.
 
-```text
-Ctrl + Shift + R
-```
-
-Si utiliza Docker Compose, la imagen anterior puede seguir sirviendo un bundle
-Web y un backend desactualizados. Reconstruya ambos servicios sin caché:
-
-```bash
-cd /home/acardenasf/GenLab_M5GP_clean
-docker compose down
-docker compose build --no-cache api web
-docker compose up -d --force-recreate api web
-```
-
-Compruebe además que el backend activo contiene el mensaje actualizado:
-
-```bash
-grep -R "Solo se admiten archivos CSV o TSV" \
-  backend/src/genlab_api/services/files.py
-```
-
-Y que el frontend permite ambas extensiones:
-
-```bash
-grep -R 'accept=".csv,.tsv' frontend/src/pages.tsx
-```
-
-#### El experimento falla con `FileNotFoundError` en `data/uploads/...`
-
-Este error corresponde a versiones que almacenaban la ubicación del dataset
-como una ruta relativa. El worker cambia temporalmente su directorio de trabajo
-al directorio de artefactos del experimento y la ruta relativa deja de apuntar
-al archivo cargado.
-
-La versión actual guarda las nuevas cargas con una ruta absoluta y resuelve
-automáticamente los registros anteriores. Al ejecutar por primera vez un
-experimento antiguo, el backend actualiza en la base de datos la ruta relativa
-a su ubicación absoluta.
-
-Después de instalar la corrección, reinicie el backend:
-
-```bash
-cd /home/acardenasf/GenLab_M5GP_clean
-source .venv/bin/activate
-uvicorn genlab_api.main:app --app-dir backend/src --host 0.0.0.0 --port 8000 --reload
-```
-
-Compruebe que el archivo continúe físicamente en:
-
-```text
-data/uploads/<id-del-usuario>/<nombre-del-dataset>.csv
-data/uploads/<id-del-usuario>/<nombre-del-dataset>.tsv
-```
-
-Si el archivo fue eliminado manualmente, vuelva a cargarlo desde el frontend y
-cree un nuevo experimento asociado con la nueva carga.
-
-#### El frontend sigue usando una URL anterior
-
-Detenga `npm run dev`, revise `frontend/.env.local` y vuelva a iniciar Vite. En
-una compilación de producción, ejecute nuevamente `npm run build`.
-
-#### La compilación falla después de actualizar dependencias
-
-Elimine la instalación local y utilice el archivo de bloqueo:
+### El frontend queda en blanco después de actualizar
 
 ```bash
 cd frontend
-rm -rf node_modules
-npm ci
+rm -rf dist node_modules/.vite
+npm ci --no-audit --no-fund
 npm run build
+npm run dev -- --host 0.0.0.0 --force
 ```
 
+Realice después una recarga forzada del navegador.
 
-### Diagnóstico de una página Web en blanco
+### La compilación npm falla
 
-La interfaz valida la sesión almacenada antes de iniciar React. Si el navegador
-conserva datos incompatibles de una versión anterior, estos se eliminan y se
-muestra nuevamente el inicio de sesión.
-
-Después de actualizar el frontend:
-
-```bash
-cd frontend
-rm -rf node_modules dist
-npm ci
-npm run dev -- --host 0.0.0.0
-```
-
-En el navegador utilice `Ctrl+Shift+R`. También puede limpiar manualmente la
-sesión desde la consola:
-
-```javascript
-localStorage.removeItem('genlab_tokens');
-location.reload();
-```
-
-Los errores de renderizado se presentan ahora en una pantalla de diagnóstico,
-en lugar de producir una página completamente vacía.
-
-### Corrección de pantalla en blanco por `LineChart`
-
-La gráfica se encuentra en `frontend/src/charts.tsx` y se importa desde `pages.tsx` con:
-
-```typescript
-import { LineChart } from './charts';
-```
-
-Esta separación evita incompatibilidades entre versiones anteriores de `components.tsx` y las páginas que utilizan las gráficas. Después de actualizar, elimine la caché de Vite y reinstale dependencias:
-
-```bash
-cd frontend
-rm -rf node_modules dist node_modules/.vite
-npm ci
-npm run dev -- --host 0.0.0.0
-```
-
-Después realice una recarga forzada del navegador con `Ctrl + Shift + R`.
-
-## Corrección de descargas: historial y resultados de prueba
-
-En la página de detalle de un experimento completado, los botones **Historial por generación** y **Resultados de prueba JSON** descargan respectivamente:
-
-- `generation_history.json`: tarea, nombre de la métrica de ajuste e historial `{generation, fit}`.
-- `test_results.json`: tarea, índice de muestra, valor real y predicción.
-
-Para mantener compatibilidad con experimentos completados antes de incorporar estos artefactos, la API puede generarlos bajo demanda:
-
-- El historial se recupera primero desde `experiment.progress.history` y, si no existe, desde las líneas `Generation: ... Train Fit: ...` del log.
-- Los resultados de prueba se reconstruyen desde `predictions.csv`.
-
-Los archivos reconstruidos se guardan en el directorio de artefactos del experimento, de modo que las descargas posteriores usan el archivo ya generado.
-
-Si la descarga falla, el frontend muestra el detalle del error HTTP en la misma página en lugar de ignorar la promesa de descarga.
-
-## Corrección de descargas JSON y gráficas
-
-La página de resultados ya no depende del endpoint combinado
-`/api/v1/experiments/{id}/visualization`. Para evitar incompatibilidades entre
-versiones del backend y frontend, utiliza dos endpoints JSON explícitos:
-
-```text
-GET /api/v1/experiments/{id}/generation-history
-GET /api/v1/experiments/{id}/test-results
-GET /api/v1/experiments/{id}/test-results?max_points=300
-```
-
-- **Historial por generación** descarga el primer endpoint como
-  `generation_history.json`.
-- **Resultados de prueba JSON** descarga el segundo endpoint como
-  `test_results.json`.
-- Las gráficas consultan esos mismos endpoints; para la gráfica de prueba se
-  usa `max_points=300`, mientras la descarga conserva todos los registros.
-- El backend reconstruye los JSON desde `progress`/log y `predictions.csv`
-  cuando un experimento antiguo todavía no tiene esos archivos físicos.
-
-Después de actualizar, reinicie por completo ambos servicios:
-
-```bash
-fuser -k 8000/tcp 2>/dev/null || true
-fuser -k 5173/tcp 2>/dev/null || true
-
-cd /home/acardenasf/GenLab_M5GP
-source .venv/bin/activate
-uvicorn genlab_api.main:app \
-  --app-dir backend/src \
-  --host 0.0.0.0 \
-  --port 8000 \
-  --reload
-```
-
-En otra terminal:
-
-```bash
-cd /home/acardenasf/GenLab_M5GP/frontend
-rm -rf node_modules/.vite dist
-npm ci
-npm run dev -- --host 0.0.0.0
-```
-
-Compruebe que el backend actualizado cargó las rutas:
-
-```bash
-curl -s http://localhost:8000/openapi.json | python -c '
-import json, sys
-paths = json.load(sys.stdin)["paths"]
-for path in sorted(paths):
-    if "generation-history" in path or "test-results" in path:
-        print(path)
-'
-```
-
-La salida esperada es:
-
-```text
-/api/v1/experiments/{experiment_id}/generation-history
-/api/v1/experiments/{experiment_id}/test-results
-```
-
-El frontend corregido no debe realizar solicitudes a:
-
-```text
-/api/v1/experiments/{id}/visualization
-```
-
-## Compatibilidad de artefactos JSON de experimentos anteriores
-
-Los botones **Historial por generación** y **Resultados de prueba JSON** utilizan los endpoints dedicados:
-
-```text
-GET /api/v1/experiments/{id}/generation-history
-GET /api/v1/experiments/{id}/test-results
-```
-
-El backend conserva además compatibilidad con las URL históricas:
-
-```text
-GET /api/v1/experiments/{id}/artifacts/generation_history.json
-GET /api/v1/experiments/{id}/artifacts/test_results.json
-```
-
-Para experimentos antiguos, aunque el campo `artifact_dir` esté vacío, la API busca el directorio determinístico `data/artifacts/<usuario>/<experimento>`. El historial se reconstruye desde el progreso o el log y los resultados de prueba desde `predictions.csv`.
-
-## Solución de instalación npm fuera del entorno de generación
-
-El `package-lock.json` del frontend usa exclusivamente el registro público de npm. No debe contener direcciones internas como `packages.applied-caas-gateway1.internal.api.openai.org`.
-
-Verificación:
-
-```bash
-cd frontend
-grep -n "applied-caas-gateway" package-lock.json
-```
-
-El comando no debe producir salida.
-
-Requisitos del frontend:
-
-```bash
-node --version
-npm --version
-```
-
-Vite 8 requiere Node.js `20.19.0` o superior, o Node.js `22.12.0` o superior. Se recomienda Node.js 22 LTS.
-
-Instalación limpia:
+Realice una instalación limpia:
 
 ```bash
 cd frontend
@@ -1282,98 +1408,73 @@ rm -rf node_modules dist node_modules/.vite
 npm cache verify
 npm ci --registry=https://registry.npmjs.org/ --no-audit --no-fund
 npm run build
-npm run dev -- --host 0.0.0.0 --port 5173 --strictPort --force
 ```
 
-Si existe una configuración npm global que fuerza otro registro:
+### Un experimento agrupado permanece en `queued`
 
-```bash
-npm config get registry
-npm config set registry https://registry.npmjs.org/
-```
+Compruebe la opción **Recursos GPU** y verifique que exista al menos una GPU disponible y que el worker pueda iniciar M5GP. Las corridas pendientes se despachan cuando se libera un dispositivo.
 
-También deben revisarse los archivos de configuración:
+### Una corrida antigua no muestra Model Size o Training Time
 
-```bash
-npm config get userconfig
-npm config get globalconfig
-```
-
-
-### Previsualización de datasets en el frontend
-
-En la opción **Datasets**, cada archivo cargado incluye el botón **Previsualizar**. La interfaz consulta `GET /api/v1/datasets/{dataset_id}/preview` y muestra:
-
-- el catálogo de columnas y su tipo de dato;
-- las primeras 20 filas del archivo CSV o TSV;
-- los nombres exactos que aparecerán en el selector **Variable objetivo** al crear un experimento.
-
-Esta vista permite identificar la columna objetivo antes de abrir **Nuevo experimento**. En la página de resultados, las gráficas de regresión se muestran después de la sección **Artefactos**.
-
-
-### Selección y vista previa de datasets
-
-En **Datasets cargados**, haga clic sobre cualquier fila para visualizar sus columnas y primeras 20 filas. La vista previa también se abre automáticamente después de cargar un archivo CSV o TSV.
-
-### Cambio de idioma y visualización de contraseña
-
-El frontend incorpora un selector de idioma en la esquina superior derecha. Puede alternar toda la interfaz entre **Español** e **English**; la preferencia queda almacenada en el navegador. La pantalla de acceso también incluye un botón dentro del campo de contraseña para mostrar u ocultar temporalmente el texto capturado.
-
-## Información Acerca de
-
-La aplicación incorpora una opción **Acerca de** en el menú lateral. Esta vista
-consulta el endpoint público:
-
-```http
-GET /api/v1/about
-```
-
-La respuesta incluye la versión exacta de GenLab M5GP, autoría y derechos de
-autor, instituciones que apoyan el proyecto, agradecimientos, referencias de
-M5GP y M5GP 2.0, enlaces de acceso y descarga del código fuente, y el aviso
-legal aplicable.
-
-Prueba rápida:
-
-```bash
-curl -s http://localhost:8000/api/v1/about | python -m json.tool
-```
-
-La versión puede configurarse con `GENLAB_APP_VERSION` y el canal de publicación
-con `GENLAB_RELEASE_CHANNEL`. Los permisos de uso, modificación y redistribución
-deben consultarse en el archivo `LICENSE` del repositorio público.
+Esos campos se almacenan de forma estructurada en las corridas generadas con la versión actual. Una corrida histórica puede no contenerlos. Para obtenerlos debe volver a ejecutarse.
 
 ---
 
-## Publicar el proyecto en GitHub
+## 27. Seguridad y despliegue
 
-El repositorio oficial de GenLab M5GP está previsto en:
+Para un despliegue fuera de desarrollo:
 
-```text
-https://github.com/armandocardenasf/GenLab-m5gp
-```
+- cambie `GENLAB_SECRET_KEY`;
+- utilice contraseñas seguras para PostgreSQL;
+- limite `GENLAB_CORS_ORIGINS` a dominios autorizados;
+- publique la API y el frontend detrás de HTTPS;
+- respalde periódicamente base de datos, uploads y artefactos;
+- no publique `.env` ni archivos de datos generados;
+- fije el commit/tag del motor M5GP para experimentos reproducibles.
 
-Este repositorio **no incluye los módulos fuente originales de M5GP 2.0**. Después de clonar GenLab, instálelos desde su repositorio independiente:
-
-```bash
-python tools/install_core_from_github.py --ref main
-python -m pip install -e core
-```
-
-Antes de confirmar o enviar cambios a GitHub, ejecute:
+Antes de confirmar cambios al repositorio:
 
 ```bash
 python tools/check_github_repository.py
 ```
 
-Para publicar desde la terminal integrada de VS Code:
+El comando comprueba que archivos sensibles, artefactos y la copia descargada del motor M5GP no estén siendo incluidos accidentalmente en Git.
 
-```bash
-git init -b main
-git add .
-git commit -m "Initial GenLab M5GP release"
-git remote add origin https://github.com/armandocardenasf/GenLab-m5gp.git
-git push -u origin main
+---
+
+## 28. Consideraciones para experimentación científica
+
+Para conservar reproducibilidad se recomienda registrar en cada estudio:
+
+- commit o tag de M5GP 2.0;
+- versión de GenLab;
+- dataset y variable objetivo;
+- perfil o JSON completo de parámetros;
+- número de corridas;
+- estrategia Holdout/K-fold;
+- proporción Train/Test o número de folds;
+- semillas utilizadas;
+- hardware GPU;
+- versiones relevantes de CUDA/RAPIDS/cuML;
+- métricas Train y Test;
+- Model Size y Training Time cuando formen parte del análisis.
+
+No debe interpretarse una única mejor corrida como resultado representativo del algoritmo. Para múltiples corridas conviene analizar al menos la media, dispersión y comportamiento por dataset, conservando siempre los resultados individuales.
+
+---
+
+## 29. Referencias del proyecto
+
+La información de versión, autoría, instituciones, referencias científicas y enlaces del proyecto puede consultarse también desde:
+
+```text
+GET /api/v1/about
 ```
 
-La guía completa para VS Code y terminal está disponible en [`docs/GITHUB_PUBLISHING.md`](docs/GITHUB_PUBLISHING.md).
+Ejemplo:
+
+```bash
+curl -sS http://localhost:8000/api/v1/about | python -m json.tool
+```
+
+Los términos de uso, modificación y redistribución deben consultarse en el archivo `LICENSE` del repositorio.

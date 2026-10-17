@@ -1,28 +1,47 @@
 # Arquitectura GenLab M5GP
 
 ```text
-Scripts Python ───────────────────────┐
-Backend/API (proceso por GPU) ────────┼──> core/src/m5gp (motor original)
-                                      │
-Frontend React ──REST/JWT──> Backend ─┘
-
-integrations/srbench/install.sh
-        └── GitHub M5GP ──> SRBench/experiment/methods/src/m5gp
+Frontend React
+    │ REST/JWT
+    ▼
+FastAPI
+    ├── Datasets
+    ├── ExperimentGroup ──┬── Dataset A ── Run 1, Run 2, ...
+    │                     └── Dataset B ── Run 1, Run 2, ...
+    ├── ParameterPreset
+    ├── Batch ── ExperimentGroup[]
+    └── GPU scheduler / leases
+                    │
+                    ▼
+             legacy experiments table
+             (una fila = una corrida)
+                    │
+                    ▼
+              worker por GPU
+                    │
+                    ▼
+             core/src/m5gp
 ```
 
-## Fuente única en GenLab
+## Compatibilidad incremental
 
-Solo `core/src/m5gp` contiene el motor. La integración SRBench contiene un
-adaptador y un instalador, no código fuente duplicado.
+La tabla `experiments` no se renombra. Esta decisión permite conservar datos y endpoints históricos. Las tablas `experiment_groups`, `experiment_group_datasets`, `experiment_group_runs`, `parameter_presets`, `batches` y `batch_experiments` se agregan sobre el esquema existente.
 
-## Separación de responsabilidades
+## Validación externa
 
-- El motor original conserva todo el ciclo evolutivo.
-- `core/src/m5gp/runtime.py` solo enumera GPUs para la API.
-- El backend administra usuarios, JWT, datasets, experimentos y reservas GPU.
-- El worker establece `CUDA_VISIBLE_DEVICES` antes de importar M5GP, de modo que
-  la GPU física reservada aparezca como dispositivo lógico 0 y se preserve
-  `cudaSetup(0)`.
-- El frontend únicamente consume la API.
-- SRBench recibe su propia copia desde el repositorio Git porque pertenece a
-  otro proyecto y a su estructura `experiment/methods/src`.
+El worker construye Train/Test antes de llamar `fit()`. Holdout usa `train_test_split`; K-fold usa `KFold` y clasificación usa `StratifiedKFold`.
+
+Los parámetros de partición se almacenan también como argumentos candidatos del constructor. `_constructor_parameters()` los reenvía sólo cuando el constructor real de M5GP los declare.
+
+## Planificación GPU
+
+Las corridas agrupadas se crean como `queued`. `dispatch_queued()` usa el servicio de leases existente. Al finalizar una corrida, el worker libera la GPU y solicita el despacho de la siguiente.
+
+## Agregación
+
+El servicio `services/lab.py` calcula métricas globales y por dataset. Los artefactos individuales permanecen en los directorios históricos de cada corrida.
+
+## Fuente M5GP
+
+`core/src/m5gp` continúa siendo la única fuente del motor utilizada por GenLab. El ciclo evolutivo no se modifica desde el backend.
+

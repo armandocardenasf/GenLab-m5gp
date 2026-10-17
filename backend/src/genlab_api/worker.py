@@ -107,6 +107,7 @@ def build_experiment_json(
         "random_state": int(random_state),
         "process_time": _json_value(float(process_time)),
         "time_time": _json_value(float(wall_time)),
+        "training_time": _json_value(float(wall_time)),
         "target_noise": _json_value(float(target_noise)),
         "feature_noise": _json_value(float(feature_noise)),
         "model_size": _model_size(model_size),
@@ -124,8 +125,6 @@ def build_experiment_json(
             }
         )
     else:
-        # Keep the regression fields present for a stable artifact schema and
-        # add the metrics that are meaningful for classification.
         document.update(
             {
                 "mse_train": None,
@@ -134,18 +133,10 @@ def build_experiment_json(
                 "mse_test": None,
                 "mae_test": None,
                 "r2_test": None,
-                "accuracy_train": _json_value(
-                    train_metrics.get("accuracy")
-                ),
-                "f1_macro_train": _json_value(
-                    train_metrics.get("f1_macro")
-                ),
-                "accuracy_test": _json_value(
-                    test_metrics.get("accuracy")
-                ),
-                "f1_macro_test": _json_value(
-                    test_metrics.get("f1_macro")
-                ),
+                "accuracy_train": _json_value(train_metrics.get("accuracy")),
+                "f1_macro_train": _json_value(train_metrics.get("f1_macro")),
+                "accuracy_test": _json_value(test_metrics.get("accuracy")),
+                "f1_macro_test": _json_value(test_metrics.get("f1_macro")),
                 "precision_macro_train": _json_value(
                     train_metrics.get("precision_macro")
                 ),
@@ -155,16 +146,20 @@ def build_experiment_json(
                 "precision_macro_test": _json_value(
                     test_metrics.get("precision_macro")
                 ),
-                "recall_macro_test": _json_value(
-                    test_metrics.get("recall_macro")
-                ),
+                "recall_macro_test": _json_value(test_metrics.get("recall_macro")),
             }
         )
     return document
 
 
 def _constructor_parameters(cls: type, values: dict) -> dict:
-    """Keep only parameters declared by the original estimator constructor."""
+    """Keep only parameters declared by the estimator constructor.
+
+    Split parameters are stored in every run today.  When m5gpRegressor or
+    m5gpClassifier explicitly declares train_size/test_size/random_state or
+    validation arguments in a future M5GP revision, this filter forwards them
+    automatically without another GenLab change.
+    """
     signature = inspect.signature(cls.__init__)
     accepted = {
         name
@@ -223,15 +218,12 @@ def _monitor_generation_progress(
             experiment_id,
             {
                 "stage": "training",
-                "percent": generation_percent(
-                    generation, total_generations
-                ),
+                "percent": generation_percent(generation, total_generations),
                 "generation": generation,
                 "total_generations": total_generations,
                 "history": list(history),
                 "message": (
-                    f"Generación {generation} de "
-                    f"{total_generations} completada"
+                    f"Generación {generation} de {total_generations} completada"
                     if generation > 0
                     else "Evaluación inicial completada"
                 ),
@@ -259,6 +251,21 @@ def _monitor_generation_progress(
     scan()
 
 
+def _release_and_dispatch(db, experiment_id: str) -> None:
+    """Release the GPU and immediately advance the queued batch/run scheduler."""
+    from .services.gpu import release
+
+    release(db, experiment_id)
+    try:
+        from .services.lab import dispatch_queued
+
+        dispatch_queued(db)
+    except Exception:
+        # Finishing the current run is authoritative.  A transient dispatcher
+        # error must not turn a completed run into a failed run.
+        db.rollback()
+
+
 def run_experiment(experiment_id: str, physical_gpu_id: int) -> None:
     # The original engine always calls cudaSetup(0). Restricting visibility
     # makes the reserved physical GPU appear as logical device 0.
@@ -268,7 +275,6 @@ def run_experiment(experiment_id: str, physical_gpu_id: int) -> None:
     from .config import get_settings
     from .db import SessionLocal
     from .models import Dataset, Experiment, ExperimentStatus
-    from .services.gpu import release
 
     db = SessionLocal()
     settings = get_settings()
@@ -277,9 +283,7 @@ def run_experiment(experiment_id: str, physical_gpu_id: int) -> None:
         db.close()
         return
 
-    artifact_dir = (
-        settings.artifact_dir / experiment.owner_id / experiment.id
-    ).resolve()
+    artifact_dir = (settings.artifact_dir / experiment.owner_id / experiment.id).resolve()
     artifact_dir.mkdir(parents=True, exist_ok=True)
     log_path = (settings.log_dir / f"{experiment.id}.log").resolve()
     log_path.parent.mkdir(parents=True, exist_ok=True)
@@ -305,16 +309,13 @@ def run_experiment(experiment_id: str, physical_gpu_id: int) -> None:
         }
         experiment.finished_at = now()
         db.commit()
-        release(db, experiment_id)
+        _release_and_dispatch(db, experiment_id)
         db.close()
         return
 
     from .services.files import resolve_dataset_path
 
-    dataset_path = resolve_dataset_path(
-        dataset.path,
-        user_id=dataset.owner_id,
-    )
+    dataset_path = resolve_dataset_path(dataset.path, user_id=dataset.owner_id)
     if not dataset_path.is_file():
         experiment.status = ExperimentStatus.failed.value
         experiment.error = f"Dataset file not found: {dataset_path}"
@@ -325,7 +326,7 @@ def run_experiment(experiment_id: str, physical_gpu_id: int) -> None:
         }
         experiment.finished_at = now()
         db.commit()
-        release(db, experiment_id)
+        _release_and_dispatch(db, experiment_id)
         db.close()
         return
 
@@ -353,7 +354,7 @@ def run_experiment(experiment_id: str, physical_gpu_id: int) -> None:
                 r2_score,
                 recall_score,
             )
-            from sklearn.model_selection import train_test_split
+            from sklearn.model_selection import KFold, StratifiedKFold, train_test_split
 
             from m5gp import m5gpClassifier, m5gpRegressor
 
@@ -364,24 +365,72 @@ def run_experiment(experiment_id: str, physical_gpu_id: int) -> None:
                 raise ValueError("La columna objetivo no existe")
 
             x_frame = frame.drop(columns=[experiment.target_column])
-            if not all(
-                np.issubdtype(dtype, np.number) for dtype in x_frame.dtypes
-            ):
-                raise ValueError(
-                    "Todas las variables predictoras deben ser numéricas"
-                )
+            if not all(np.issubdtype(dtype, np.number) for dtype in x_frame.dtypes):
+                raise ValueError("Todas las variables predictoras deben ser numéricas")
 
             X = x_frame.to_numpy().astype(np.float32)
             y = frame[experiment.target_column].to_numpy().astype(np.float32)
-            stratify = (
-                y if experiment.task_type == "classification" else None
+
+            split_config = dict((experiment.parameters or {}).get("_genlab_split") or {})
+            split_strategy = str(split_config.get("strategy", "holdout")).lower()
+            split_seed = _int_or_default(
+                split_config.get("random_state"),
+                _int_or_default(
+                    (experiment.parameters or {}).get("random_state"),
+                    settings.random_state,
+                ),
             )
-            X_train, X_test, y_train, y_test = train_test_split(
-                X,
-                y,
-                test_size=settings.test_size,
-                random_state=settings.random_state,
-                stratify=stratify,
+            stratify = y if experiment.task_type == "classification" else None
+
+            if split_strategy == "kfold":
+                folds = max(_int_or_default(split_config.get("folds"), 5), 2)
+                shuffle = bool(split_config.get("shuffle", True))
+                fold_index = _int_or_default(split_config.get("fold_index"), 0)
+                if experiment.task_type == "classification":
+                    splitter = StratifiedKFold(
+                        n_splits=folds,
+                        shuffle=shuffle,
+                        random_state=split_seed if shuffle else None,
+                    )
+                    splits = list(splitter.split(X, y))
+                else:
+                    splitter = KFold(
+                        n_splits=folds,
+                        shuffle=shuffle,
+                        random_state=split_seed if shuffle else None,
+                    )
+                    splits = list(splitter.split(X))
+                train_index, test_index = splits[fold_index % len(splits)]
+                X_train, X_test = X[train_index], X[test_index]
+                y_train, y_test = y[train_index], y[test_index]
+            else:
+                test_size = _float_or_default(
+                    split_config.get("test_size"), settings.test_size
+                )
+                train_size_value = split_config.get("train_size")
+                train_size = (
+                    _float_or_default(train_size_value)
+                    if train_size_value is not None
+                    else None
+                )
+                X_train, X_test, y_train, y_test = train_test_split(
+                    X,
+                    y,
+                    train_size=train_size,
+                    test_size=test_size,
+                    random_state=split_seed,
+                    stratify=stratify,
+                )
+
+            split_config.update(
+                {
+                    "strategy": split_strategy,
+                    "random_state": split_seed,
+                    "actual_train_rows": int(len(y_train)),
+                    "actual_test_rows": int(len(y_test)),
+                    "actual_train_size": float(len(y_train) / len(y)),
+                    "actual_test_size": float(len(y_test) / len(y)),
+                }
             )
 
             experiment.progress = {
@@ -396,17 +445,17 @@ def run_experiment(experiment_id: str, physical_gpu_id: int) -> None:
                 if experiment.task_type == "regression"
                 else m5gpClassifier
             )
-            parameters = _constructor_parameters(
-                estimator_class, dict(experiment.parameters or {})
-            )
-            parameters.setdefault(
-                "logPath", str(artifact_dir / "log") + os.sep
-            )
+            constructor_values = dict(experiment.parameters or {})
+            constructor_values.pop("_genlab_split", None)
+            # GenLab obtiene el avance por generación a partir de la salida nativa
+            # de M5GP. Mantener verbose=1 garantiza progreso visible incluso si
+            # un preset personalizado desactiva accidentalmente la salida.
+            constructor_values["verbose"] = 1
+            parameters = _constructor_parameters(estimator_class, constructor_values)
+            parameters.setdefault("logPath", str(artifact_dir / "log") + os.sep)
 
             model = estimator_class(**parameters)
-            total_generations = max(
-                int(getattr(model, "generations", 1) or 1), 1
-            )
+            total_generations = max(int(getattr(model, "generations", 1) or 1), 1)
             experiment.progress = {
                 "stage": "training",
                 "percent": 8,
@@ -419,12 +468,7 @@ def run_experiment(experiment_id: str, physical_gpu_id: int) -> None:
             stop_monitor = threading.Event()
             monitor = threading.Thread(
                 target=_monitor_generation_progress,
-                args=(
-                    experiment.id,
-                    log_path,
-                    total_generations,
-                    stop_monitor,
-                ),
+                args=(experiment.id, log_path, total_generations, stop_monitor),
                 daemon=True,
             )
             monitor.start()
@@ -439,12 +483,8 @@ def run_experiment(experiment_id: str, physical_gpu_id: int) -> None:
             wall_elapsed = time.time() - wall_started
 
             db.refresh(experiment)
-            last_generation = int(
-                (experiment.progress or {}).get("generation", 0)
-            )
-            generation_history = list(
-                (experiment.progress or {}).get("history", [])
-            )
+            last_generation = int((experiment.progress or {}).get("generation", 0))
+            generation_history = list((experiment.progress or {}).get("history", []))
             experiment.progress = {
                 "stage": "evaluating",
                 "percent": 92,
@@ -461,17 +501,13 @@ def run_experiment(experiment_id: str, physical_gpu_id: int) -> None:
             if experiment.task_type == "regression":
                 train_metrics = {
                     "mse": float(mean_squared_error(y_train, train_prediction)),
-                    "rmse": float(
-                        mean_squared_error(y_train, train_prediction) ** 0.5
-                    ),
+                    "rmse": float(mean_squared_error(y_train, train_prediction) ** 0.5),
                     "mae": float(mean_absolute_error(y_train, train_prediction)),
                     "r2": float(r2_score(y_train, train_prediction)),
                 }
                 test_metrics = {
                     "mse": float(mean_squared_error(y_test, prediction)),
-                    "rmse": float(
-                        mean_squared_error(y_test, prediction) ** 0.5
-                    ),
+                    "rmse": float(mean_squared_error(y_test, prediction) ** 0.5),
                     "mae": float(mean_absolute_error(y_test, prediction)),
                     "r2": float(r2_score(y_test, prediction)),
                 }
@@ -483,16 +519,9 @@ def run_experiment(experiment_id: str, physical_gpu_id: int) -> None:
                 }
             else:
                 train_metrics = {
-                    "accuracy": float(
-                        accuracy_score(y_train, train_prediction)
-                    ),
+                    "accuracy": float(accuracy_score(y_train, train_prediction)),
                     "f1_macro": float(
-                        f1_score(
-                            y_train,
-                            train_prediction,
-                            average="macro",
-                            zero_division=0,
-                        )
+                        f1_score(y_train, train_prediction, average="macro", zero_division=0)
                     ),
                     "precision_macro": float(
                         precision_score(
@@ -514,12 +543,7 @@ def run_experiment(experiment_id: str, physical_gpu_id: int) -> None:
                 test_metrics = {
                     "accuracy": float(accuracy_score(y_test, prediction)),
                     "f1_macro": float(
-                        f1_score(
-                            y_test,
-                            prediction,
-                            average="macro",
-                            zero_division=0,
-                        )
+                        f1_score(y_test, prediction, average="macro", zero_division=0)
                     ),
                     "precision_macro": float(
                         precision_score(
@@ -539,9 +563,7 @@ def run_experiment(experiment_id: str, physical_gpu_id: int) -> None:
                     ),
                 }
                 classes = np.unique(np.concatenate([y_test, prediction]))
-                matrix = confusion_matrix(
-                    y_test, prediction, labels=classes
-                ).tolist()
+                matrix = confusion_matrix(y_test, prediction, labels=classes).tolist()
                 report = classification_report(
                     y_test,
                     prediction,
@@ -562,6 +584,7 @@ def run_experiment(experiment_id: str, physical_gpu_id: int) -> None:
                     **classification_details,
                 }
 
+            metrics["validation"] = _json_value(split_config)
             experiment.progress = {
                 "stage": "saving",
                 "percent": 97,
@@ -574,6 +597,16 @@ def run_experiment(experiment_id: str, physical_gpu_id: int) -> None:
 
             symbolic_model = model.get_model()
             model_complexity = model.complexity()
+            numeric_model_size = _model_size(model_complexity)
+            metrics["model_size"] = (
+                numeric_model_size
+                if isinstance(numeric_model_size, (int, float))
+                and math.isfinite(float(numeric_model_size))
+                else None
+            )
+            metrics["training_time"] = float(wall_elapsed)
+            metrics["process_time"] = float(process_elapsed)
+            metrics["training_time_unit"] = "seconds"
             joblib.dump(model, artifact_dir / "model.joblib")
             prediction_frame = pd.DataFrame(
                 {
@@ -582,9 +615,7 @@ def run_experiment(experiment_id: str, physical_gpu_id: int) -> None:
                     "prediction": prediction,
                 }
             )
-            prediction_frame.to_csv(
-                artifact_dir / "predictions.csv", index=False
-            )
+            prediction_frame.to_csv(artifact_dir / "predictions.csv", index=False)
             (artifact_dir / "model.txt").write_text(
                 str(symbolic_model), encoding="utf-8"
             )
@@ -614,12 +645,8 @@ def run_experiment(experiment_id: str, physical_gpu_id: int) -> None:
                 json.dumps(
                     {
                         "task_type": experiment.task_type,
-                        "sample": _json_value(
-                            prediction_frame["sample"].tolist()
-                        ),
-                        "actual": _json_value(
-                            prediction_frame["actual"].tolist()
-                        ),
+                        "sample": _json_value(prediction_frame["sample"].tolist()),
+                        "actual": _json_value(prediction_frame["actual"].tolist()),
                         "prediction": _json_value(
                             prediction_frame["prediction"].tolist()
                         ),
@@ -635,9 +662,7 @@ def run_experiment(experiment_id: str, physical_gpu_id: int) -> None:
                     json.dumps(
                         {
                             "classes": classification_details["classes"],
-                            "matrix": classification_details[
-                                "confusion_matrix"
-                            ],
+                            "matrix": classification_details["confusion_matrix"],
                         },
                         indent=2,
                         ensure_ascii=False,
@@ -654,14 +679,12 @@ def run_experiment(experiment_id: str, physical_gpu_id: int) -> None:
                     ),
                     encoding="utf-8",
                 )
+
             result_document = build_experiment_json(
                 dataset_name=Path(dataset.original_name).stem,
                 algorithm=estimator_class.__name__,
                 params=_effective_parameters(model),
-                random_state=_int_or_default(
-                    (experiment.parameters or {}).get("random_state"),
-                    settings.random_state,
-                ),
+                random_state=split_seed,
                 process_time=process_elapsed,
                 wall_time=wall_elapsed,
                 target_noise=_float_or_default(
@@ -676,6 +699,8 @@ def run_experiment(experiment_id: str, physical_gpu_id: int) -> None:
                 train_metrics=train_metrics,
                 test_metrics=test_metrics,
             )
+            result_document["validation"] = _json_value(split_config)
+            result_document["run_id"] = experiment.id
             (artifact_dir / "experiment.json").write_text(
                 json.dumps(
                     result_document,
@@ -696,7 +721,7 @@ def run_experiment(experiment_id: str, physical_gpu_id: int) -> None:
                 "generation": last_generation,
                 "total_generations": total_generations,
                 "history": generation_history,
-                "message": "Experimento finalizado correctamente",
+                "message": "Corrida finalizada correctamente",
             }
             experiment.finished_at = now()
             db.commit()
@@ -708,13 +733,13 @@ def run_experiment(experiment_id: str, physical_gpu_id: int) -> None:
             **dict(experiment.progress or {}),
             "stage": "failed",
             "percent": current_percent,
-            "message": "El experimento terminó con error",
+            "message": "La corrida terminó con error",
         }
         experiment.finished_at = now()
         db.commit()
     finally:
         os.chdir(previous_directory)
         try:
-            release(db, experiment_id)
+            _release_and_dispatch(db, experiment_id)
         finally:
             db.close()

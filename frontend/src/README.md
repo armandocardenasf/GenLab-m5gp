@@ -1,3 +1,7 @@
-# Código de interfaz
+# Código fuente del frontend
 
-`api.ts` gestiona REST y renovación de sesión; `auth.tsx` mantiene la sesión; `pages.tsx` contiene vistas de trabajo; `styles.css` define el diseño.
+- `pages.tsx`: vistas históricas y funciones que se conservan (login, datasets, recursos, acerca de).
+- `lab.tsx`: experimentos agrupados, corridas, lotes, predefinidos y dashboard actualizado.
+- `lab-types.ts`: tipos del nuevo modelo experimental.
+- `scatter.tsx`: nube de puntos observado/predicho.
+- `lab.css`: estilos incrementales, manteniendo `styles.css` original.

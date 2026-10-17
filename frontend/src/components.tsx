@@ -15,7 +15,8 @@ import { statusLabel, useI18n } from './i18n';
 
 export function Layout({ children }: { children: React.ReactNode }) {
   const { user, logout } = useAuth();
-  const { t } = useI18n();
+  const { t, language } = useI18n();
+  const tr = (es: string, en: string) => language === 'es' ? es : en;
   return (
     <div className="shell">
       <aside>
@@ -26,6 +27,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
           <NavLink to="/"><Activity />{t('nav.overview')}</NavLink>
           <NavLink to="/datasets"><Database />{t('nav.datasets')}</NavLink>
           <NavLink to="/experiments"><FlaskConical />{t('nav.experiments')}</NavLink>
+          <NavLink to="/runs"><Activity />{tr('Corridas', 'Runs')}</NavLink>
+          <NavLink to="/batches"><FlaskConical />{tr('Lotes', 'Batches')}</NavLink>
+          <NavLink to="/parameters"><Gauge />{tr('Parámetros', 'Parameters')}</NavLink>
+          <NavLink to="/comparisons"><Activity />{tr('Comparativos', 'Comparisons')}</NavLink>
           <NavLink to="/resources"><Gauge />{t('nav.resources')}</NavLink>
           <NavLink to="/about"><Info />{t('nav.about')}</NavLink>
         </nav>
@@ -50,7 +55,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
 }
 
 export const Status = ({ value }: { value: string }) => {
-  const { t } = useI18n();
+  const { t, language } = useI18n();
+  if (value === 'queued') {
+    return <span className="status queued">{language === 'es' ? 'en cola' : 'queued'}</span>;
+  }
   return <span className={`status ${value}`}>{statusLabel(value, t)}</span>;
 };
 
